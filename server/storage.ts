@@ -1,0 +1,1182 @@
+import { db } from "./db";
+import { eq, and, desc, sql, gte, lte, sum } from "drizzle-orm";
+import {
+  users,
+  companies,
+  chartOfAccounts,
+  cashReceipts,
+  cashReceiptLines,
+  cashDisbursements,
+  cashDisbursementLines,
+  subscriptions,
+  employees,
+  payrollPeriods,
+  payrollRecords,
+  taxSettings,
+  mcitCredits,
+  nolcoEntries,
+  finalWithholdingIncomes,
+  type UpsertUser,
+  type User,
+  type Company,
+  type InsertCompany,
+  type ChartOfAccount,
+  type InsertChartOfAccount,
+  type CashReceipt,
+  type InsertCashReceipt,
+  type CashReceiptLine,
+  type InsertCashReceiptLine,
+  type CashDisbursement,
+  type InsertCashDisbursement,
+  type CashDisbursementLine,
+  type InsertCashDisbursementLine,
+  type Subscription,
+  type InsertSubscription,
+  type Employee,
+  type InsertEmployee,
+  type PayrollPeriod,
+  type InsertPayrollPeriod,
+  type PayrollRecord,
+  type InsertPayrollRecord,
+  type TaxSettings,
+  type InsertTaxSettings,
+  type McitCredit,
+  type InsertMcitCredit,
+  type NolcoEntry,
+  type InsertNolcoEntry,
+  type FinalWithholdingIncome,
+  type InsertFinalWithholdingIncome,
+} from "@shared/schema";
+
+export interface IStorage {
+  // User operations
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  getUsersByCompanyId(companyId: number): Promise<User[]>;
+  getApprovers(companyId: number): Promise<User[]>;
+  updateUserRole(userId: string, role: string): Promise<User>;
+
+  // Company operations
+  getCompany(id: number): Promise<Company | undefined>;
+  getCompanyByUserId(userId: string): Promise<Company | undefined>;
+  getCompanyByStripeCustomerId(stripeCustomerId: string): Promise<Company | undefined>;
+  createCompany(company: InsertCompany): Promise<Company>;
+  updateCompany(id: number, company: Partial<InsertCompany>): Promise<Company>;
+  updateCompanyStripeCustomer(companyId: number, stripeCustomerId: string): Promise<Company>;
+  updateCompanySubscription(companyId: number, stripeSubscriptionId: string, status: string, endDate: string): Promise<Company>;
+
+  // Chart of Accounts operations
+  getChartOfAccounts(companyId: number): Promise<ChartOfAccount[]>;
+  getChartOfAccountById(id: number): Promise<ChartOfAccount | undefined>;
+  createChartOfAccount(account: InsertChartOfAccount): Promise<ChartOfAccount>;
+  updateChartOfAccount(id: number, account: Partial<InsertChartOfAccount>): Promise<ChartOfAccount>;
+  deleteChartOfAccount(id: number): Promise<void>;
+
+  // Cash Receipts operations
+  getCashReceipts(companyId: number): Promise<CashReceipt[]>;
+  getCashReceiptById(id: number): Promise<CashReceipt | undefined>;
+  getCashReceiptWithLines(id: number): Promise<(CashReceipt & { lines: CashReceiptLine[] }) | undefined>;
+  createCashReceipt(receipt: InsertCashReceipt, lines: InsertCashReceiptLine[]): Promise<CashReceipt>;
+  updateCashReceipt(id: number, receipt: Partial<InsertCashReceipt>, lines?: InsertCashReceiptLine[]): Promise<CashReceipt>;
+  deleteCashReceipt(id: number): Promise<void>;
+  approveCashReceipt(id: number, approvedById: string): Promise<CashReceipt>;
+  getVatableCashReceipts(companyId: number, year: number): Promise<CashReceipt[]>;
+
+  // Cash Disbursements operations
+  getCashDisbursements(companyId: number): Promise<CashDisbursement[]>;
+  getCashDisbursementById(id: number): Promise<CashDisbursement | undefined>;
+  getCashDisbursementWithLines(id: number): Promise<(CashDisbursement & { lines: CashDisbursementLine[] }) | undefined>;
+  createCashDisbursement(disbursement: InsertCashDisbursement, lines: InsertCashDisbursementLine[]): Promise<CashDisbursement>;
+  updateCashDisbursement(id: number, disbursement: Partial<InsertCashDisbursement>, lines?: InsertCashDisbursementLine[]): Promise<CashDisbursement>;
+  deleteCashDisbursement(id: number): Promise<void>;
+  approveCashDisbursement(id: number, approvedById: string): Promise<CashDisbursement>;
+  getVatableCashDisbursements(companyId: number, year: number): Promise<CashDisbursement[]>;
+
+  // Subscription operations
+  getSubscriptions(companyId: number): Promise<Subscription[]>;
+  createSubscription(subscription: InsertSubscription): Promise<Subscription>;
+  updateSubscription(id: number, subscription: Partial<InsertSubscription>): Promise<Subscription>;
+
+  // Report operations
+  getDashboardStats(companyId: number): Promise<any>;
+  getRecentVouchers(companyId: number, limit: number): Promise<any[]>;
+  getJournalEntries(companyId: number, year: number): Promise<any[]>;
+
+  // Employee operations
+  getEmployees(companyId: number): Promise<Employee[]>;
+  getEmployeeById(id: number): Promise<Employee | undefined>;
+  createEmployee(employee: InsertEmployee): Promise<Employee>;
+  updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee>;
+  deleteEmployee(id: number): Promise<void>;
+  bulkCreateEmployees(employees: InsertEmployee[]): Promise<Employee[]>;
+
+  // Payroll Period operations
+  getPayrollPeriods(companyId: number): Promise<PayrollPeriod[]>;
+  getPayrollPeriodById(id: number): Promise<PayrollPeriod | undefined>;
+  createPayrollPeriod(period: InsertPayrollPeriod): Promise<PayrollPeriod>;
+  updatePayrollPeriod(id: number, period: Partial<InsertPayrollPeriod>): Promise<PayrollPeriod>;
+  deletePayrollPeriod(id: number): Promise<void>;
+
+  // Payroll Record operations
+  getPayrollRecords(periodId: number): Promise<(PayrollRecord & { employee: Employee })[]>;
+  createPayrollRecord(record: InsertPayrollRecord): Promise<PayrollRecord>;
+  bulkCreatePayrollRecords(records: InsertPayrollRecord[]): Promise<PayrollRecord[]>;
+  updatePayrollRecord(id: number, record: Partial<InsertPayrollRecord>): Promise<PayrollRecord>;
+  deletePayrollRecord(id: number): Promise<void>;
+
+  // BIR Data Aggregation
+  getPayrollSummaryByPeriod(companyId: number, startDate: string, endDate: string): Promise<any>;
+  getWithholdingTaxSummary(companyId: number, startDate: string, endDate: string): Promise<any>;
+  getVatSummary(companyId: number, startDate: string, endDate: string): Promise<any>;
+  getIncomeSummary(companyId: number, startDate: string, endDate: string): Promise<any>;
+  getSupplierPaymentsSummary(companyId: number, startDate: string, endDate: string): Promise<any>;
+  getEmployeeAlphalist(companyId: number, year: number): Promise<any[]>;
+  getSalesList(companyId: number, startDate: string, endDate: string): Promise<any[]>;
+  getPurchasesList(companyId: number, startDate: string, endDate: string): Promise<any[]>;
+  getWithholdingTaxCredits(companyId: number, startDate: string, endDate: string): Promise<any[]>;
+
+  // Onboarding
+  createCompanyWithDefaults(userId: string, companyName: string): Promise<Company>;
+
+  // Tax Settings operations
+  getTaxSettings(companyId: number, taxYear: number): Promise<TaxSettings | undefined>;
+  upsertTaxSettings(settings: InsertTaxSettings): Promise<TaxSettings>;
+
+  // MCIT Credits operations
+  getMcitCredits(companyId: number): Promise<McitCredit[]>;
+  getAvailableMcitCredits(companyId: number, currentYear: number): Promise<McitCredit[]>;
+  createMcitCredit(credit: InsertMcitCredit): Promise<McitCredit>;
+  updateMcitCredit(id: number, credit: Partial<InsertMcitCredit>): Promise<McitCredit>;
+  deleteMcitCredit(id: number): Promise<void>;
+
+  // NOLCO operations
+  getNolcoEntries(companyId: number): Promise<NolcoEntry[]>;
+  getAvailableNolco(companyId: number, currentYear: number): Promise<NolcoEntry[]>;
+  createNolcoEntry(entry: InsertNolcoEntry): Promise<NolcoEntry>;
+  updateNolcoEntry(id: number, entry: Partial<InsertNolcoEntry>): Promise<NolcoEntry>;
+  deleteNolcoEntry(id: number): Promise<void>;
+
+  // Final Withholding Income operations
+  getFinalWithholdingIncomes(companyId: number, taxYear?: number): Promise<FinalWithholdingIncome[]>;
+  createFinalWithholdingIncome(income: InsertFinalWithholdingIncome): Promise<FinalWithholdingIncome>;
+  deleteFinalWithholdingIncome(id: number): Promise<void>;
+}
+
+export class DatabaseStorage implements IStorage {
+  // User operations
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  async getUsersByCompanyId(companyId: number): Promise<User[]> {
+    return db.select().from(users).where(eq(users.companyId, companyId));
+  }
+
+  async getApprovers(companyId: number): Promise<User[]> {
+    return db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.companyId, companyId),
+          sql`${users.role} IN ('admin', 'approver')`
+        )
+      );
+  }
+
+  async updateUserRole(userId: string, role: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ role, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  // Company operations
+  async getCompany(id: number): Promise<Company | undefined> {
+    const [company] = await db.select().from(companies).where(eq(companies.id, id));
+    return company;
+  }
+
+  async getCompanyByUserId(userId: string): Promise<Company | undefined> {
+    const user = await this.getUser(userId);
+    if (!user?.companyId) return undefined;
+    return this.getCompany(user.companyId);
+  }
+
+  async getCompanyByStripeCustomerId(stripeCustomerId: string): Promise<Company | undefined> {
+    const [company] = await db
+      .select()
+      .from(companies)
+      .where(eq(companies.stripeCustomerId, stripeCustomerId));
+    return company;
+  }
+
+  async createCompany(company: InsertCompany): Promise<Company> {
+    const [newCompany] = await db.insert(companies).values(company).returning();
+    return newCompany;
+  }
+
+  async updateCompany(id: number, company: Partial<InsertCompany>): Promise<Company> {
+    const [updated] = await db
+      .update(companies)
+      .set({ ...company, updatedAt: new Date() })
+      .where(eq(companies.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateCompanyStripeCustomer(companyId: number, stripeCustomerId: string): Promise<Company> {
+    const [updated] = await db
+      .update(companies)
+      .set({ stripeCustomerId, updatedAt: new Date() })
+      .where(eq(companies.id, companyId))
+      .returning();
+    return updated;
+  }
+
+  async updateCompanySubscription(companyId: number, stripeSubscriptionId: string, status: string, endDate: string): Promise<Company> {
+    const [updated] = await db
+      .update(companies)
+      .set({ 
+        stripeSubscriptionId, 
+        subscriptionStatus: status,
+        subscriptionEndDate: endDate,
+        updatedAt: new Date() 
+      })
+      .where(eq(companies.id, companyId))
+      .returning();
+    return updated;
+  }
+
+  // Chart of Accounts operations
+  async getChartOfAccounts(companyId: number): Promise<ChartOfAccount[]> {
+    return db
+      .select()
+      .from(chartOfAccounts)
+      .where(eq(chartOfAccounts.companyId, companyId))
+      .orderBy(chartOfAccounts.code);
+  }
+
+  async getChartOfAccountById(id: number): Promise<ChartOfAccount | undefined> {
+    const [account] = await db.select().from(chartOfAccounts).where(eq(chartOfAccounts.id, id));
+    return account;
+  }
+
+  async createChartOfAccount(account: InsertChartOfAccount): Promise<ChartOfAccount> {
+    const [newAccount] = await db.insert(chartOfAccounts).values(account).returning();
+    return newAccount;
+  }
+
+  async updateChartOfAccount(id: number, account: Partial<InsertChartOfAccount>): Promise<ChartOfAccount> {
+    const [updated] = await db
+      .update(chartOfAccounts)
+      .set(account)
+      .where(eq(chartOfAccounts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteChartOfAccount(id: number): Promise<void> {
+    await db.delete(chartOfAccounts).where(eq(chartOfAccounts.id, id));
+  }
+
+  // Cash Receipts operations
+  async getCashReceipts(companyId: number): Promise<CashReceipt[]> {
+    return db
+      .select()
+      .from(cashReceipts)
+      .where(eq(cashReceipts.companyId, companyId))
+      .orderBy(desc(cashReceipts.voucherDate));
+  }
+
+  async getCashReceiptById(id: number): Promise<CashReceipt | undefined> {
+    const [receipt] = await db.select().from(cashReceipts).where(eq(cashReceipts.id, id));
+    return receipt;
+  }
+
+  async getCashReceiptWithLines(id: number): Promise<(CashReceipt & { lines: CashReceiptLine[] }) | undefined> {
+    const receipt = await this.getCashReceiptById(id);
+    if (!receipt) return undefined;
+    const lines = await db.select().from(cashReceiptLines).where(eq(cashReceiptLines.cashReceiptId, id));
+    return { ...receipt, lines };
+  }
+
+  async createCashReceipt(receipt: InsertCashReceipt, lines: InsertCashReceiptLine[]): Promise<CashReceipt> {
+    const [newReceipt] = await db.insert(cashReceipts).values(receipt).returning();
+    
+    if (lines.length > 0) {
+      await db.insert(cashReceiptLines).values(
+        lines.map((line) => ({ ...line, cashReceiptId: newReceipt.id }))
+      );
+    }
+    
+    return newReceipt;
+  }
+
+  async updateCashReceipt(id: number, receipt: Partial<InsertCashReceipt>, lines?: InsertCashReceiptLine[]): Promise<CashReceipt> {
+    const [updated] = await db
+      .update(cashReceipts)
+      .set({ ...receipt, updatedAt: new Date() })
+      .where(eq(cashReceipts.id, id))
+      .returning();
+
+    if (lines) {
+      await db.delete(cashReceiptLines).where(eq(cashReceiptLines.cashReceiptId, id));
+      if (lines.length > 0) {
+        await db.insert(cashReceiptLines).values(
+          lines.map((line) => ({ ...line, cashReceiptId: id }))
+        );
+      }
+    }
+
+    return updated;
+  }
+
+  async deleteCashReceipt(id: number): Promise<void> {
+    await db.delete(cashReceipts).where(eq(cashReceipts.id, id));
+  }
+
+  async approveCashReceipt(id: number, approvedById: string): Promise<CashReceipt> {
+    const [updated] = await db
+      .update(cashReceipts)
+      .set({ status: "approved", approvedById, approvedAt: new Date(), updatedAt: new Date() })
+      .where(eq(cashReceipts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getVatableCashReceipts(companyId: number, year: number): Promise<CashReceipt[]> {
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+    return db
+      .select()
+      .from(cashReceipts)
+      .where(
+        and(
+          eq(cashReceipts.companyId, companyId),
+          eq(cashReceipts.isVatable, true),
+          gte(cashReceipts.voucherDate, startDate),
+          lte(cashReceipts.voucherDate, endDate)
+        )
+      )
+      .orderBy(cashReceipts.voucherDate);
+  }
+
+  // Cash Disbursements operations
+  async getCashDisbursements(companyId: number): Promise<CashDisbursement[]> {
+    return db
+      .select()
+      .from(cashDisbursements)
+      .where(eq(cashDisbursements.companyId, companyId))
+      .orderBy(desc(cashDisbursements.voucherDate));
+  }
+
+  async getCashDisbursementById(id: number): Promise<CashDisbursement | undefined> {
+    const [disbursement] = await db.select().from(cashDisbursements).where(eq(cashDisbursements.id, id));
+    return disbursement;
+  }
+
+  async getCashDisbursementWithLines(id: number): Promise<(CashDisbursement & { lines: CashDisbursementLine[] }) | undefined> {
+    const disbursement = await this.getCashDisbursementById(id);
+    if (!disbursement) return undefined;
+    const lines = await db.select().from(cashDisbursementLines).where(eq(cashDisbursementLines.cashDisbursementId, id));
+    return { ...disbursement, lines };
+  }
+
+  async createCashDisbursement(disbursement: InsertCashDisbursement, lines: InsertCashDisbursementLine[]): Promise<CashDisbursement> {
+    const [newDisbursement] = await db.insert(cashDisbursements).values(disbursement).returning();
+    
+    if (lines.length > 0) {
+      await db.insert(cashDisbursementLines).values(
+        lines.map((line) => ({ ...line, cashDisbursementId: newDisbursement.id }))
+      );
+    }
+    
+    return newDisbursement;
+  }
+
+  async updateCashDisbursement(id: number, disbursement: Partial<InsertCashDisbursement>, lines?: InsertCashDisbursementLine[]): Promise<CashDisbursement> {
+    const [updated] = await db
+      .update(cashDisbursements)
+      .set({ ...disbursement, updatedAt: new Date() })
+      .where(eq(cashDisbursements.id, id))
+      .returning();
+
+    if (lines) {
+      await db.delete(cashDisbursementLines).where(eq(cashDisbursementLines.cashDisbursementId, id));
+      if (lines.length > 0) {
+        await db.insert(cashDisbursementLines).values(
+          lines.map((line) => ({ ...line, cashDisbursementId: id }))
+        );
+      }
+    }
+
+    return updated;
+  }
+
+  async deleteCashDisbursement(id: number): Promise<void> {
+    await db.delete(cashDisbursements).where(eq(cashDisbursements.id, id));
+  }
+
+  async approveCashDisbursement(id: number, approvedById: string): Promise<CashDisbursement> {
+    const [updated] = await db
+      .update(cashDisbursements)
+      .set({ status: "approved", approvedById, approvedAt: new Date(), updatedAt: new Date() })
+      .where(eq(cashDisbursements.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getVatableCashDisbursements(companyId: number, year: number): Promise<CashDisbursement[]> {
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+    return db
+      .select()
+      .from(cashDisbursements)
+      .where(
+        and(
+          eq(cashDisbursements.companyId, companyId),
+          eq(cashDisbursements.hasInputVat, true),
+          gte(cashDisbursements.voucherDate, startDate),
+          lte(cashDisbursements.voucherDate, endDate)
+        )
+      )
+      .orderBy(cashDisbursements.voucherDate);
+  }
+
+  // Subscription operations
+  async getSubscriptions(companyId: number): Promise<Subscription[]> {
+    return db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.companyId, companyId))
+      .orderBy(desc(subscriptions.createdAt));
+  }
+
+  async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
+    const [newSubscription] = await db.insert(subscriptions).values(subscription).returning();
+    return newSubscription;
+  }
+
+  async updateSubscription(id: number, subscription: Partial<InsertSubscription>): Promise<Subscription> {
+    const [updated] = await db
+      .update(subscriptions)
+      .set(subscription)
+      .where(eq(subscriptions.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Report operations
+  async getDashboardStats(companyId: number): Promise<any> {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+
+    const receipts = await db
+      .select()
+      .from(cashReceipts)
+      .where(eq(cashReceipts.companyId, companyId));
+
+    const disbursements = await db
+      .select()
+      .from(cashDisbursements)
+      .where(eq(cashDisbursements.companyId, companyId));
+
+    const monthlyReceipts = receipts
+      .filter((r) => r.voucherDate >= monthStart && r.voucherDate <= monthEnd)
+      .reduce((sum, r) => sum + parseFloat(r.cashAmount || "0"), 0);
+
+    const monthlyDisbursements = disbursements
+      .filter((d) => d.voucherDate >= monthStart && d.voucherDate <= monthEnd)
+      .reduce((sum, d) => sum + parseFloat(d.cashAmount || "0"), 0);
+
+    const totalReceipts = receipts.reduce((sum, r) => sum + parseFloat(r.cashAmount || "0"), 0);
+    const totalDisbursements = disbursements.reduce((sum, d) => sum + parseFloat(d.cashAmount || "0"), 0);
+
+    const pendingApprovals =
+      receipts.filter((r) => r.status === "pending" || r.status === "draft").length +
+      disbursements.filter((d) => d.status === "pending" || d.status === "draft").length;
+
+    return {
+      monthlyReceipts,
+      monthlyDisbursements,
+      totalReceipts,
+      totalDisbursements,
+      netCashFlow: totalReceipts - totalDisbursements,
+      pendingApprovals,
+    };
+  }
+
+  async getRecentVouchers(companyId: number, limit: number): Promise<any[]> {
+    const receipts = await db
+      .select()
+      .from(cashReceipts)
+      .where(eq(cashReceipts.companyId, companyId))
+      .orderBy(desc(cashReceipts.createdAt))
+      .limit(limit);
+
+    const disbursements = await db
+      .select()
+      .from(cashDisbursements)
+      .where(eq(cashDisbursements.companyId, companyId))
+      .orderBy(desc(cashDisbursements.createdAt))
+      .limit(limit);
+
+    const combined = [
+      ...receipts.map((r) => ({
+        id: r.id,
+        type: "receipt" as const,
+        number: r.crn,
+        date: r.voucherDate,
+        name: r.payorName,
+        amount: r.cashAmount,
+        status: r.status,
+        createdAt: r.createdAt,
+      })),
+      ...disbursements.map((d) => ({
+        id: d.id,
+        type: "disbursement" as const,
+        number: d.cdn,
+        date: d.voucherDate,
+        name: d.payeeName,
+        amount: d.cashAmount,
+        status: d.status,
+        createdAt: d.createdAt,
+      })),
+    ];
+
+    return combined
+      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
+      .slice(0, limit);
+  }
+
+  async getJournalEntries(companyId: number, year: number): Promise<any[]> {
+    // We construct strings for comparison in JS, which is more reliable
+    // than SQL date comparison for this specific setup
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+
+    // 1. Fetch ALL receipts for the company (removed SQL date filter)
+    const receipts = await db
+      .select()
+      .from(cashReceipts)
+      .where(eq(cashReceipts.companyId, companyId));
+
+    // 2. Fetch ALL disbursements for the company (removed SQL date filter)
+    const disbursements = await db
+      .select()
+      .from(cashDisbursements)
+      .where(eq(cashDisbursements.companyId, companyId));
+
+    // 3. Filter and map in JavaScript (Matches getDashboardStats logic)
+    const combined = [
+      ...receipts
+        .filter((r) => r.voucherDate >= startDate && r.voucherDate <= endDate)
+        .map((r) => ({
+          id: r.id,
+          type: "receipt" as const,
+          voucherNumber: r.crn,
+          voucherDate: r.voucherDate,
+          name: r.payorName,
+          particulars: r.particulars || "",
+          debit: r.cashAmount,
+          credit: "0",
+        })),
+      ...disbursements
+        .filter((d) => d.voucherDate >= startDate && d.voucherDate <= endDate)
+        .map((d) => ({
+          id: d.id,
+          type: "disbursement" as const,
+          voucherNumber: d.cdn,
+          voucherDate: d.voucherDate,
+          name: d.payeeName,
+          particulars: d.particulars || "",
+          debit: "0",
+          credit: d.cashAmount,
+        })),
+    ];
+
+    return combined.sort((a, b) => new Date(a.voucherDate).getTime() - new Date(b.voucherDate).getTime());
+  }
+
+  // Onboarding - Create company with default chart of accounts
+  async createCompanyWithDefaults(userId: string, companyName: string): Promise<Company> {
+    // Create the company with trial subscription
+    const today = new Date();
+    const trialEnd = new Date(today);
+    trialEnd.setDate(trialEnd.getDate() + 30); // 30-day trial
+
+    const [company] = await db.insert(companies).values({
+      name: companyName,
+      subscriptionStatus: "trial",
+      subscriptionStartDate: today.toISOString().split('T')[0],
+      subscriptionEndDate: trialEnd.toISOString().split('T')[0],
+    }).returning();
+
+    // Update user with company and make them general manager
+    await db.update(users)
+      .set({ 
+        companyId: company.id, 
+        role: "general_manager",
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId));
+
+    // Insert default Philippine Chart of Accounts
+    const defaultAccounts: Omit<InsertChartOfAccount, "companyId">[] = [
+      // Assets
+      { code: "1000", name: "Cash on Hand", accountType: "asset", category: "balance_sheet" },
+      { code: "1010", name: "Cash in Bank", accountType: "asset", category: "balance_sheet" },
+      { code: "1100", name: "Accounts Receivable", accountType: "asset", category: "balance_sheet" },
+      { code: "1200", name: "Inventory - Merchandise", accountType: "asset", category: "balance_sheet" },
+      { code: "1300", name: "Prepaid Expenses", accountType: "asset", category: "balance_sheet" },
+      { code: "1400", name: "Input VAT", accountType: "asset", category: "balance_sheet" },
+      { code: "1500", name: "Property and Equipment", accountType: "asset", category: "balance_sheet" },
+      { code: "1510", name: "Accumulated Depreciation", accountType: "asset", category: "balance_sheet" },
+      
+      // Liabilities
+      { code: "2000", name: "Accounts Payable", accountType: "liability", category: "balance_sheet" },
+      { code: "2100", name: "Output VAT", accountType: "liability", category: "balance_sheet" },
+      { code: "2200", name: "Withholding Tax Payable", accountType: "liability", category: "balance_sheet" },
+      { code: "2300", name: "SSS/PhilHealth/Pag-IBIG Payable", accountType: "liability", category: "balance_sheet" },
+      { code: "2400", name: "Loans Payable", accountType: "liability", category: "balance_sheet" },
+      
+      // Equity
+      { code: "3000", name: "Owner's Capital", accountType: "equity", category: "balance_sheet" },
+      { code: "3100", name: "Owner's Drawings", accountType: "equity", category: "balance_sheet" },
+      { code: "3200", name: "Retained Earnings", accountType: "equity", category: "balance_sheet" },
+      
+      // Revenue
+      { code: "4000", name: "Sales Revenue", accountType: "revenue", category: "profit_loss" },
+      { code: "4100", name: "Service Revenue", accountType: "revenue", category: "profit_loss" },
+      { code: "4200", name: "Other Income", accountType: "revenue", category: "profit_loss" },
+      
+      // Cost (Cost of Sales - for BIR tax reporting)
+      { code: "5000", name: "Cost of Goods Sold", accountType: "cost", category: "profit_loss" },
+      { code: "5100", name: "Purchases", accountType: "cost", category: "profit_loss" },
+      { code: "5150", name: "Freight-In", accountType: "cost", category: "profit_loss" },
+      { code: "5200", name: "Direct Materials", accountType: "cost", category: "profit_loss" },
+      { code: "5250", name: "Direct Labor", accountType: "cost", category: "profit_loss" },
+      
+      // Expenses (Operating Expenses)
+      { code: "6000", name: "Salaries and Wages", accountType: "expense", category: "profit_loss" },
+      { code: "6100", name: "Rent Expense", accountType: "expense", category: "profit_loss" },
+      { code: "6200", name: "Utilities Expense", accountType: "expense", category: "profit_loss" },
+      { code: "6300", name: "Transportation Expense", accountType: "expense", category: "profit_loss" },
+      { code: "6400", name: "Office Supplies Expense", accountType: "expense", category: "profit_loss" },
+      { code: "6500", name: "Communication Expense", accountType: "expense", category: "profit_loss" },
+      { code: "6600", name: "Depreciation Expense", accountType: "expense", category: "profit_loss" },
+      { code: "6700", name: "Professional Fees", accountType: "expense", category: "profit_loss" },
+      { code: "6800", name: "Taxes and Licenses", accountType: "expense", category: "profit_loss" },
+      { code: "6900", name: "Miscellaneous Expense", accountType: "expense", category: "profit_loss" },
+    ];
+
+    await db.insert(chartOfAccounts).values(
+      defaultAccounts.map(acc => ({ ...acc, companyId: company.id }))
+    );
+
+    return company;
+  }
+
+  // Employee operations
+  async getEmployees(companyId: number): Promise<Employee[]> {
+    return db.select().from(employees).where(eq(employees.companyId, companyId)).orderBy(employees.lastName);
+  }
+
+  async getEmployeeById(id: number): Promise<Employee | undefined> {
+    const [employee] = await db.select().from(employees).where(eq(employees.id, id));
+    return employee;
+  }
+
+  async createEmployee(employee: InsertEmployee): Promise<Employee> {
+    const [newEmployee] = await db.insert(employees).values(employee).returning();
+    return newEmployee;
+  }
+
+  async updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee> {
+    const [updated] = await db.update(employees).set({ ...employee, updatedAt: new Date() }).where(eq(employees.id, id)).returning();
+    return updated;
+  }
+
+  async deleteEmployee(id: number): Promise<void> {
+    await db.delete(employees).where(eq(employees.id, id));
+  }
+
+  async bulkCreateEmployees(employeesList: InsertEmployee[]): Promise<Employee[]> {
+    if (employeesList.length === 0) return [];
+    return db.insert(employees).values(employeesList).returning();
+  }
+
+  // Payroll Period operations
+  async getPayrollPeriods(companyId: number): Promise<PayrollPeriod[]> {
+    return db.select().from(payrollPeriods).where(eq(payrollPeriods.companyId, companyId)).orderBy(desc(payrollPeriods.startDate));
+  }
+
+  async getPayrollPeriodById(id: number): Promise<PayrollPeriod | undefined> {
+    const [period] = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, id));
+    return period;
+  }
+
+  async createPayrollPeriod(period: InsertPayrollPeriod): Promise<PayrollPeriod> {
+    const [newPeriod] = await db.insert(payrollPeriods).values(period).returning();
+    return newPeriod;
+  }
+
+  async updatePayrollPeriod(id: number, period: Partial<InsertPayrollPeriod>): Promise<PayrollPeriod> {
+    const [updated] = await db.update(payrollPeriods).set({ ...period, updatedAt: new Date() }).where(eq(payrollPeriods.id, id)).returning();
+    return updated;
+  }
+
+  async deletePayrollPeriod(id: number): Promise<void> {
+    await db.delete(payrollPeriods).where(eq(payrollPeriods.id, id));
+  }
+
+  // Payroll Record operations
+  async getPayrollRecords(periodId: number): Promise<(PayrollRecord & { employee: Employee })[]> {
+    const records = await db.select().from(payrollRecords).where(eq(payrollRecords.payrollPeriodId, periodId));
+    const results: (PayrollRecord & { employee: Employee })[] = [];
+    for (const record of records) {
+      const employee = await this.getEmployeeById(record.employeeId);
+      if (employee) {
+        results.push({ ...record, employee });
+      }
+    }
+    return results;
+  }
+
+  async createPayrollRecord(record: InsertPayrollRecord): Promise<PayrollRecord> {
+    const [newRecord] = await db.insert(payrollRecords).values(record).returning();
+    return newRecord;
+  }
+
+  async bulkCreatePayrollRecords(records: InsertPayrollRecord[]): Promise<PayrollRecord[]> {
+    if (records.length === 0) return [];
+    return db.insert(payrollRecords).values(records).returning();
+  }
+
+  async updatePayrollRecord(id: number, record: Partial<InsertPayrollRecord>): Promise<PayrollRecord> {
+    const [updated] = await db.update(payrollRecords).set({ ...record, updatedAt: new Date() }).where(eq(payrollRecords.id, id)).returning();
+    return updated;
+  }
+
+  async deletePayrollRecord(id: number): Promise<void> {
+    await db.delete(payrollRecords).where(eq(payrollRecords.id, id));
+  }
+
+  // BIR Data Aggregation helpers
+  async getPayrollSummaryByPeriod(companyId: number, startDate: string, endDate: string): Promise<any> {
+    const periods = await db.select().from(payrollPeriods)
+      .where(and(
+        eq(payrollPeriods.companyId, companyId),
+        gte(payrollPeriods.startDate, startDate),
+        lte(payrollPeriods.endDate, endDate)
+      ));
+
+    let totalGrossCompensation = 0;
+    let totalWithholdingTax = 0;
+    let totalSssEmployee = 0;
+    let totalPhilhealthEmployee = 0;
+    let totalHdmfEmployee = 0;
+    let totalSssEmployer = 0;
+    let totalPhilhealthEmployer = 0;
+    let totalHdmfEmployer = 0;
+    let employeeCount = 0;
+
+    for (const period of periods) {
+      const records = await db.select().from(payrollRecords).where(eq(payrollRecords.payrollPeriodId, period.id));
+      employeeCount = Math.max(employeeCount, records.length);
+      
+      for (const record of records) {
+        totalGrossCompensation += parseFloat(record.grossCompensation || "0");
+        totalWithholdingTax += parseFloat(record.withholdingTax || "0");
+        totalSssEmployee += parseFloat(record.sssEmployee || "0");
+        totalPhilhealthEmployee += parseFloat(record.philhealthEmployee || "0");
+        totalHdmfEmployee += parseFloat(record.hdmfEmployee || "0");
+        totalSssEmployer += parseFloat(record.sssEmployer || "0");
+        totalPhilhealthEmployer += parseFloat(record.philhealthEmployer || "0");
+        totalHdmfEmployer += parseFloat(record.hdmfEmployer || "0");
+      }
+    }
+
+    return {
+      periodCount: periods.length,
+      employeeCount,
+      totalGrossCompensation,
+      totalWithholdingTax,
+      totalSssEmployee,
+      totalPhilhealthEmployee,
+      totalHdmfEmployee,
+      totalSssEmployer,
+      totalPhilhealthEmployer,
+      totalHdmfEmployer,
+      totalEmployeeContributions: totalSssEmployee + totalPhilhealthEmployee + totalHdmfEmployee,
+      totalEmployerContributions: totalSssEmployer + totalPhilhealthEmployer + totalHdmfEmployer,
+    };
+  }
+
+  async getWithholdingTaxSummary(companyId: number, startDate: string, endDate: string): Promise<any> {
+    const payrollSummary = await this.getPayrollSummaryByPeriod(companyId, startDate, endDate);
+    
+    return {
+      compensationWithholdingTax: payrollSummary.totalWithholdingTax,
+      expandedWithholdingTax: 0, // From disbursements to suppliers - would need additional field
+      finalWithholdingTax: 0, // Interest, dividends - would need additional tracking
+      totalWithholdingTax: payrollSummary.totalWithholdingTax,
+    };
+  }
+
+  async getVatSummary(companyId: number, startDate: string, endDate: string): Promise<any> {
+    const receipts = await db.select().from(cashReceipts)
+      .where(and(
+        eq(cashReceipts.companyId, companyId),
+        gte(cashReceipts.voucherDate, startDate),
+        lte(cashReceipts.voucherDate, endDate)
+      ));
+
+    const disbursements = await db.select().from(cashDisbursements)
+      .where(and(
+        eq(cashDisbursements.companyId, companyId),
+        gte(cashDisbursements.voucherDate, startDate),
+        lte(cashDisbursements.voucherDate, endDate)
+      ));
+
+    let vatableSales = 0;
+    let zeroRatedSales = 0;
+    let exemptSales = 0;
+    let outputVat = 0;
+
+    for (const receipt of receipts) {
+      if (receipt.isVatable) {
+        vatableSales += parseFloat(receipt.netAmount || "0");
+        outputVat += parseFloat(receipt.vatAmount || "0");
+      } else if (receipt.isZeroRated) {
+        zeroRatedSales += parseFloat(receipt.netAmount || "0");
+      } else {
+        exemptSales += parseFloat(receipt.cashAmount || "0");
+      }
+    }
+
+    let inputVat = 0;
+    for (const disbursement of disbursements) {
+      if (disbursement.hasInputVat) {
+        inputVat += parseFloat(disbursement.vatAmount || "0");
+      }
+    }
+
+    return {
+      vatableSales,
+      zeroRatedSales,
+      exemptSales,
+      outputVat,
+      inputVat,
+      vatPayable: outputVat - inputVat,
+    };
+  }
+
+  async getIncomeSummary(companyId: number, startDate: string, endDate: string): Promise<any> {
+    const receipts = await db.select().from(cashReceipts)
+      .where(and(
+        eq(cashReceipts.companyId, companyId),
+        gte(cashReceipts.voucherDate, startDate),
+        lte(cashReceipts.voucherDate, endDate)
+      ));
+
+    const disbursements = await db.select().from(cashDisbursements)
+      .where(and(
+        eq(cashDisbursements.companyId, companyId),
+        gte(cashDisbursements.voucherDate, startDate),
+        lte(cashDisbursements.voucherDate, endDate)
+      ));
+
+    const grossIncome = receipts.reduce((sum, r) => sum + parseFloat(r.netAmount || r.cashAmount || "0"), 0);
+    const deductions = disbursements.reduce((sum, d) => sum + parseFloat(d.netAmount || d.cashAmount || "0"), 0);
+    const taxableIncome = grossIncome - deductions;
+    const incomeTaxRate = 0.25; // 25% corporate tax rate
+    const incomeTaxDue = Math.max(0, taxableIncome * incomeTaxRate);
+
+    return {
+      grossIncome,
+      deductions,
+      taxableIncome,
+      incomeTaxDue,
+      incomeTaxRate,
+    };
+  }
+
+  async getSupplierPaymentsSummary(companyId: number, startDate: string, endDate: string): Promise<any> {
+    const disbursements = await db.select().from(cashDisbursements)
+      .where(and(
+        eq(cashDisbursements.companyId, companyId),
+        gte(cashDisbursements.voucherDate, startDate),
+        lte(cashDisbursements.voucherDate, endDate)
+      ));
+
+    const supplierPayments: { [key: string]: { totalPayments: number; count: number } } = {};
+    
+    for (const d of disbursements) {
+      const payeeName = d.payeeName || "Unknown";
+      if (!supplierPayments[payeeName]) {
+        supplierPayments[payeeName] = { totalPayments: 0, count: 0 };
+      }
+      supplierPayments[payeeName].totalPayments += parseFloat(d.cashAmount || "0");
+      supplierPayments[payeeName].count += 1;
+    }
+
+    return {
+      totalPayments: disbursements.reduce((sum, d) => sum + parseFloat(d.cashAmount || "0"), 0),
+      supplierCount: Object.keys(supplierPayments).length,
+      suppliers: Object.entries(supplierPayments).map(([name, data]) => ({
+        name,
+        ...data,
+      })),
+    };
+  }
+
+  async getEmployeeAlphalist(companyId: number, year: number): Promise<any[]> {
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+
+    const empList = await this.getEmployees(companyId);
+    const periods = await db.select().from(payrollPeriods)
+      .where(and(
+        eq(payrollPeriods.companyId, companyId),
+        gte(payrollPeriods.startDate, startDate),
+        lte(payrollPeriods.endDate, endDate)
+      ));
+
+    const alphalist: any[] = [];
+
+    for (const emp of empList) {
+      let totalCompensation = 0;
+      let totalWithholdingTax = 0;
+      let totalSss = 0;
+      let totalPhilhealth = 0;
+      let totalHdmf = 0;
+
+      for (const period of periods) {
+        const records = await db.select().from(payrollRecords)
+          .where(and(
+            eq(payrollRecords.payrollPeriodId, period.id),
+            eq(payrollRecords.employeeId, emp.id)
+          ));
+
+        for (const record of records) {
+          totalCompensation += parseFloat(record.grossCompensation || "0");
+          totalWithholdingTax += parseFloat(record.withholdingTax || "0");
+          totalSss += parseFloat(record.sssEmployee || "0");
+          totalPhilhealth += parseFloat(record.philhealthEmployee || "0");
+          totalHdmf += parseFloat(record.hdmfEmployee || "0");
+        }
+      }
+
+      alphalist.push({
+        employeeCode: emp.employeeCode,
+        tin: emp.tin || "",
+        lastName: emp.lastName,
+        firstName: emp.firstName,
+        middleName: emp.middleName || "",
+        totalCompensation,
+        totalWithholdingTax,
+        totalSss,
+        totalPhilhealth,
+        totalHdmf,
+        netPay: totalCompensation - totalWithholdingTax - totalSss - totalPhilhealth - totalHdmf,
+      });
+    }
+
+    return alphalist.sort((a, b) => a.lastName.localeCompare(b.lastName));
+  }
+
+  async getSalesList(companyId: number, startDate: string, endDate: string): Promise<any[]> {
+    const receipts = await db.select().from(cashReceipts)
+      .where(and(
+        eq(cashReceipts.companyId, companyId),
+        gte(cashReceipts.voucherDate, startDate),
+        lte(cashReceipts.voucherDate, endDate)
+      ))
+      .orderBy(cashReceipts.voucherDate);
+
+    return receipts.map(r => ({
+      date: r.voucherDate,
+      crn: r.crn,
+      customerTin: r.customerTin || "",
+      customerName: r.payorName || "",
+      customerAddress: r.payorAddress || "",
+      salesAmount: parseFloat(r.netAmount || r.cashAmount || "0"),
+      vatAmount: parseFloat(r.vatAmount || "0"),
+      grossAmount: parseFloat(r.cashAmount || "0"),
+      isVatable: r.isVatable || false,
+    }));
+  }
+
+  async getPurchasesList(companyId: number, startDate: string, endDate: string): Promise<any[]> {
+    const disbursements = await db.select().from(cashDisbursements)
+      .where(and(
+        eq(cashDisbursements.companyId, companyId),
+        gte(cashDisbursements.voucherDate, startDate),
+        lte(cashDisbursements.voucherDate, endDate)
+      ))
+      .orderBy(cashDisbursements.voucherDate);
+
+    return disbursements.map(d => ({
+      date: d.voucherDate,
+      cvn: d.cvn,
+      supplierTin: d.supplierTin || "",
+      supplierName: d.payeeName || "",
+      supplierAddress: d.payeeAddress || "",
+      purchaseAmount: parseFloat(d.netAmount || d.cashAmount || "0"),
+      vatAmount: parseFloat(d.inputVatAmount || "0"),
+      grossAmount: parseFloat(d.cashAmount || "0"),
+      hasInputVat: d.hasInputVat || false,
+    }));
+  }
+
+  async getWithholdingTaxCredits(companyId: number, startDate: string, endDate: string): Promise<any[]> {
+    const receipts = await db.select().from(cashReceipts)
+      .where(and(
+        eq(cashReceipts.companyId, companyId),
+        gte(cashReceipts.voucherDate, startDate),
+        lte(cashReceipts.voucherDate, endDate),
+        sql`CAST(${cashReceipts.withholdingTaxAmount} AS DECIMAL) > 0`
+      ))
+      .orderBy(cashReceipts.voucherDate);
+
+    return receipts.map(r => ({
+      date: r.voucherDate,
+      crn: r.crn,
+      withholdingAgentTin: r.customerTin || "",
+      withholdingAgentName: r.payorName || "",
+      withholdingAgentAddress: r.payorAddress || "",
+      incomePayment: parseFloat(r.netAmount || r.cashAmount || "0"),
+      taxWithheld: parseFloat(r.withholdingTaxAmount || "0"),
+      atcCode: r.atcCode || "",
+    }));
+  }
+
+  // Tax Settings operations
+  async getTaxSettings(companyId: number, taxYear: number): Promise<TaxSettings | undefined> {
+    const [settings] = await db.select().from(taxSettings)
+      .where(and(eq(taxSettings.companyId, companyId), eq(taxSettings.taxYear, taxYear)));
+    return settings;
+  }
+
+  async upsertTaxSettings(settings: InsertTaxSettings): Promise<TaxSettings> {
+    const existing = await this.getTaxSettings(settings.companyId, settings.taxYear);
+    if (existing) {
+      const [updated] = await db.update(taxSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(taxSettings.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(taxSettings).values(settings).returning();
+    return created;
+  }
+
+  // MCIT Credits operations
+  async getMcitCredits(companyId: number): Promise<McitCredit[]> {
+    return db.select().from(mcitCredits)
+      .where(eq(mcitCredits.companyId, companyId))
+      .orderBy(desc(mcitCredits.taxYear));
+  }
+
+  async getAvailableMcitCredits(companyId: number, currentYear: number): Promise<McitCredit[]> {
+    return db.select().from(mcitCredits)
+      .where(and(
+        eq(mcitCredits.companyId, companyId),
+        gte(mcitCredits.expiryYear, currentYear),
+        sql`CAST(${mcitCredits.remainingAmount} AS DECIMAL) > 0`
+      ))
+      .orderBy(mcitCredits.taxYear);
+  }
+
+  async createMcitCredit(credit: InsertMcitCredit): Promise<McitCredit> {
+    const [created] = await db.insert(mcitCredits).values(credit).returning();
+    return created;
+  }
+
+  async updateMcitCredit(id: number, credit: Partial<InsertMcitCredit>): Promise<McitCredit> {
+    const [updated] = await db.update(mcitCredits).set(credit).where(eq(mcitCredits.id, id)).returning();
+    return updated;
+  }
+
+  async deleteMcitCredit(id: number): Promise<void> {
+    await db.delete(mcitCredits).where(eq(mcitCredits.id, id));
+  }
+
+  // NOLCO operations
+  async getNolcoEntries(companyId: number): Promise<NolcoEntry[]> {
+    return db.select().from(nolcoEntries)
+      .where(eq(nolcoEntries.companyId, companyId))
+      .orderBy(desc(nolcoEntries.lossYear));
+  }
+
+  async getAvailableNolco(companyId: number, currentYear: number): Promise<NolcoEntry[]> {
+    return db.select().from(nolcoEntries)
+      .where(and(
+        eq(nolcoEntries.companyId, companyId),
+        gte(nolcoEntries.expiryYear, currentYear),
+        sql`CAST(${nolcoEntries.remainingAmount} AS DECIMAL) > 0`
+      ))
+      .orderBy(nolcoEntries.lossYear);
+  }
+
+  async createNolcoEntry(entry: InsertNolcoEntry): Promise<NolcoEntry> {
+    const [created] = await db.insert(nolcoEntries).values(entry).returning();
+    return created;
+  }
+
+  async updateNolcoEntry(id: number, entry: Partial<InsertNolcoEntry>): Promise<NolcoEntry> {
+    const [updated] = await db.update(nolcoEntries).set(entry).where(eq(nolcoEntries.id, id)).returning();
+    return updated;
+  }
+
+  async deleteNolcoEntry(id: number): Promise<void> {
+    await db.delete(nolcoEntries).where(eq(nolcoEntries.id, id));
+  }
+
+  // Final Withholding Income operations
+  async getFinalWithholdingIncomes(companyId: number, taxYear?: number): Promise<FinalWithholdingIncome[]> {
+    if (taxYear) {
+      return db.select().from(finalWithholdingIncomes)
+        .where(and(
+          eq(finalWithholdingIncomes.companyId, companyId),
+          eq(finalWithholdingIncomes.taxYear, taxYear)
+        ))
+        .orderBy(desc(finalWithholdingIncomes.taxYear));
+    }
+    return db.select().from(finalWithholdingIncomes)
+      .where(eq(finalWithholdingIncomes.companyId, companyId))
+      .orderBy(desc(finalWithholdingIncomes.taxYear));
+  }
+
+  async createFinalWithholdingIncome(income: InsertFinalWithholdingIncome): Promise<FinalWithholdingIncome> {
+    const [created] = await db.insert(finalWithholdingIncomes).values(income).returning();
+    return created;
+  }
+
+  async deleteFinalWithholdingIncome(id: number): Promise<void> {
+    await db.delete(finalWithholdingIncomes).where(eq(finalWithholdingIncomes.id, id));
+  }
+}
+
+export const storage = new DatabaseStorage();

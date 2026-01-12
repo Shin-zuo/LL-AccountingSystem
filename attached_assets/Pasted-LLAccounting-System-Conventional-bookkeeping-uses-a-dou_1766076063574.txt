@@ -1,0 +1,16 @@
+LLAccounting System
+Conventional bookkeeping uses a double entry system.  The LLAS is going to simplify bookkeeping by using a single entry system and an Excel spreadsheet as the database.  By using Excel, monetary entries will be as follows:  Debits are plus (+) and Credits are minus (-).  
+The database shall be a single Excel File but containing several worksheets in the same file so they can be interlinked.
+Sheet 1:  Chart of accounts which identifies each account with a unique code – whether numerical or an abbreviated alpha.   
+Sheet 2:  Cash Receipts Voucher Form which contains following data:  CRN (record number), Date, Payor Name, Particulars (Description), Amount  debit (+),  Accounts to be credited with corresponding amounts (-); distinguish if cash received is vatable (subject to output VAT).\, and segregate output vat of 12% accordingly.  At the last column of every spreadsheet row, all amounts are summed up and must show a zero sum to prove that all debits are equal to all credits.  There shall be subtotals by month, by quarter and annual.
+Sheet 3:  Cash Disbursement Voucher Form which contains following data:  CDN (record number), Date, Payee Name, Particulars (Description), Amount credit (-), Accounts to be debited with corresponding amounts (+). Distinguish if cash disbursed is eligible for input tax and segregate the input VAT of 12%  accordingly.  At the last column of every spreadsheet tow, all amounts are summed up and must show a zero sum to prove that all debits are equal to all credits.  There shall be subtotals by month, by quarter and annual.
+Sheet 4:  A Consolidated Journal-Ledger spreadsheet is one that is automatically created by combining the Cash Receipts (Sheet 2) and Cash Disbursement (Sheet 3) into one sheet where transactions are arranged  chronologically.  There shall be subtotals by month, by quarter and annual.
+
+Sheet 5:  A VAT Sales Book is a spreadsheet that filters the Cash Receipts Voucher file (sheet 2) and selects only those rows where output tax is applicable. There shall be subtotals by month, by quarter, and annual.
+
+Sheet 6: A VAT Purchase Book is a spreadsheet that filters the Cash Disbursement Voucher file (sheet 3) and selects only those where input tax is applicable.  There shall be subtotals by month, by quarter and annual.
+
+Sheet 7: Required Reports for all the above spreadsheets:  Create summary reports From the Monthly, Quarterly and Annual totals derived from the Consolidated Journal-Ledger for the following:  Profit and Loss Accounts, Balance Sheet Accounts.  Such reports shall be transposed from the excel sums for each account and arranged in accordance with the chart of accounts.  Accounts are in Column 1, then monthly sums for January, February, March, First Quarter, then April, May, June, 2nd Quarter, then July, August September, 3rd Quarter, then October, November, December, 4th Quarter, then Annual for entire calendar year.   In effect, while the transactions are contained in rows from the origin sheets, the reports will now show the accounts vertically and the periods horizontal  (transposed).
+All Excel files should be downloadable or viewable as well as editable.
+
+CAN YOU BUILD THIS APP USING ONLY EXCEL AS THE DATABASE? 

@@ -1,0 +1,87 @@
+# Autoscale Deployments
+
+> Autoscale Deployments publish your Replit App to cloud servers that adjust automatically to handle your app's traffic and workload.
+
+Autoscale Deployments run on cloud computing resources that scale up and down to efficiently handle the
+network traffic and workload of your Replit App. When your app is busy, autoscaling adds servers to
+manage the load. When your app is idle, it reduces the number to as low as zero to save you money.
+
+Autoscale Deployments are ideal for the following use cases:
+
+* Web applications that handle variable workloads and traffic such as ecommerce sites
+* APIs and services
+
+<Frame>
+  <img src="https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/autoscale-deployments.jpg?fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=249758926937644572b1db350a170d92" alt="Autoscale Deployment" data-og-width="1920" width="1920" data-og-height="1080" height="1080" data-path="images/deployments/autoscale/autoscale-deployments.jpg" data-optimize="true" data-opv="3" srcset="https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/autoscale-deployments.jpg?w=280&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=6bb51e60a17af52ce48e1c61ecce790a 280w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/autoscale-deployments.jpg?w=560&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=c7e5037083ad793099c2a627025af464 560w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/autoscale-deployments.jpg?w=840&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=be162d36c5a8e234e2ff3cbb211f7619 840w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/autoscale-deployments.jpg?w=1100&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=f9807e878e6a2a2948f0e4e8f0663ed4 1100w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/autoscale-deployments.jpg?w=1650&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=d803b429231f46bb3176af73a6d42010 1650w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/autoscale-deployments.jpg?w=2500&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=ebb1445d19263e877d3cb80140a37b1a 2500w" />
+</Frame>
+
+## Features
+
+Autoscale Deployment include the following features:
+
+* **Automatic resource scaling**: Automatically adjusts resources based on traffic patterns to optimize costs.
+* **Custom domains**: Configure a custom domain or use a `<app-name>.replit.app` URL to access your app.
+* **Configurable limits**: Set the maximum number of instances your published app can scale to.
+* **Flexible machine power**: Choose the CPU and RAM configuration that meets your app's needs.
+* **Monitoring**: View logs and monitor your published app's status.
+
+## Usage
+
+You can access Autoscale Deployment in the Publishing workspace tool.
+
+<Accordion title="How to access Autoscale Deployment">
+  From the left **Tool dock**:
+
+  1. Select <img class="icon-svg" src="https://mintcdn.com/replit/7jcTEkTXPQwUz2BL/images/icons/workspace-all-tools-button.svg?fit=max&auto=format&n=7jcTEkTXPQwUz2BL&q=85&s=5b2c72713cc17ac272098bcbfd624d84" alt="All tools icon" data-og-width="16" width="16" data-og-height="16" height="16" data-path="images/icons/workspace-all-tools-button.svg" data-optimize="true" data-opv="3" srcset="https://mintcdn.com/replit/7jcTEkTXPQwUz2BL/images/icons/workspace-all-tools-button.svg?w=280&fit=max&auto=format&n=7jcTEkTXPQwUz2BL&q=85&s=284639f38f8e91da05d14611e44a9ae6 280w, https://mintcdn.com/replit/7jcTEkTXPQwUz2BL/images/icons/workspace-all-tools-button.svg?w=560&fit=max&auto=format&n=7jcTEkTXPQwUz2BL&q=85&s=d0e802a9c50a81e5c825cf1ddce00a64 560w, https://mintcdn.com/replit/7jcTEkTXPQwUz2BL/images/icons/workspace-all-tools-button.svg?w=840&fit=max&auto=format&n=7jcTEkTXPQwUz2BL&q=85&s=b5c4e38a7cf923221d2412e904bbdc94 840w, https://mintcdn.com/replit/7jcTEkTXPQwUz2BL/images/icons/workspace-all-tools-button.svg?w=1100&fit=max&auto=format&n=7jcTEkTXPQwUz2BL&q=85&s=3b43a87adf314fbb300376b404ab8a22 1100w, https://mintcdn.com/replit/7jcTEkTXPQwUz2BL/images/icons/workspace-all-tools-button.svg?w=1650&fit=max&auto=format&n=7jcTEkTXPQwUz2BL&q=85&s=a11f8a405c4156ff625219a372c2ceca 1650w, https://mintcdn.com/replit/7jcTEkTXPQwUz2BL/images/icons/workspace-all-tools-button.svg?w=2500&fit=max&auto=format&n=7jcTEkTXPQwUz2BL&q=85&s=7c86d2f1bfa4611aeca168daf29d08ff 2500w" /> **All tools** to see a list of workspace tools.
+  2. Select <img class="icon-svg" src="https://mintcdn.com/replit/rBzGsKp9NcWJ7sib/images/icons/deploy-icon.svg?fit=max&auto=format&n=rBzGsKp9NcWJ7sib&q=85&s=df3fa2573b451c54591523c9d9111db1" alt="Publishing icon" data-og-width="16" width="16" data-og-height="16" height="16" data-path="images/icons/deploy-icon.svg" data-optimize="true" data-opv="3" srcset="https://mintcdn.com/replit/rBzGsKp9NcWJ7sib/images/icons/deploy-icon.svg?w=280&fit=max&auto=format&n=rBzGsKp9NcWJ7sib&q=85&s=115e9383e0350a6ef201a41f78f8a19a 280w, https://mintcdn.com/replit/rBzGsKp9NcWJ7sib/images/icons/deploy-icon.svg?w=560&fit=max&auto=format&n=rBzGsKp9NcWJ7sib&q=85&s=667b93ae66d0b69569409fb90d9fc280 560w, https://mintcdn.com/replit/rBzGsKp9NcWJ7sib/images/icons/deploy-icon.svg?w=840&fit=max&auto=format&n=rBzGsKp9NcWJ7sib&q=85&s=ae927e5aadcb7a470ad726f0acb0f782 840w, https://mintcdn.com/replit/rBzGsKp9NcWJ7sib/images/icons/deploy-icon.svg?w=1100&fit=max&auto=format&n=rBzGsKp9NcWJ7sib&q=85&s=16ee8f7b3d9db6b4f74ea8c2ebb6730f 1100w, https://mintcdn.com/replit/rBzGsKp9NcWJ7sib/images/icons/deploy-icon.svg?w=1650&fit=max&auto=format&n=rBzGsKp9NcWJ7sib&q=85&s=ad04a5984543c13895fd30182294ec0a 1650w, https://mintcdn.com/replit/rBzGsKp9NcWJ7sib/images/icons/deploy-icon.svg?w=2500&fit=max&auto=format&n=rBzGsKp9NcWJ7sib&q=85&s=2449268bce371256727b17027eb180f3 2500w" /> **Publishing**.
+  3. Select the **Autoscale** option and then select **Set up your published app**.
+
+  From the **Search bar**:
+
+  1. Select the <img class="icon-svg" src="https://mintcdn.com/replit/7jcTEkTXPQwUz2BL/images/icons/workspace-search-icon.svg?fit=max&auto=format&n=7jcTEkTXPQwUz2BL&q=85&s=4a0eb8f6b17ff6761d53167334a68b30" alt="magnifying glass icon" data-og-width="16" width="16" data-og-height="16" height="16" data-path="images/icons/workspace-search-icon.svg" data-optimize="true" data-opv="3" srcset="https://mintcdn.com/replit/7jcTEkTXPQwUz2BL/images/icons/workspace-search-icon.svg?w=280&fit=max&auto=format&n=7jcTEkTXPQwUz2BL&q=85&s=baa20919b2c8e7db2fad2562c732edd0 280w, https://mintcdn.com/replit/7jcTEkTXPQwUz2BL/images/icons/workspace-search-icon.svg?w=560&fit=max&auto=format&n=7jcTEkTXPQwUz2BL&q=85&s=5fcfa3935da89ed6c1c6f893998c4f4a 560w, https://mintcdn.com/replit/7jcTEkTXPQwUz2BL/images/icons/workspace-search-icon.svg?w=840&fit=max&auto=format&n=7jcTEkTXPQwUz2BL&q=85&s=2a24f3fcc4dd990d9062598eab165cff 840w, https://mintcdn.com/replit/7jcTEkTXPQwUz2BL/images/icons/workspace-search-icon.svg?w=1100&fit=max&auto=format&n=7jcTEkTXPQwUz2BL&q=85&s=a3258e068d5ead6bacadcbe6e5785575 1100w, https://mintcdn.com/replit/7jcTEkTXPQwUz2BL/images/icons/workspace-search-icon.svg?w=1650&fit=max&auto=format&n=7jcTEkTXPQwUz2BL&q=85&s=d08ebecb3063ed18a657beb563ac9c3c 1650w, https://mintcdn.com/replit/7jcTEkTXPQwUz2BL/images/icons/workspace-search-icon.svg?w=2500&fit=max&auto=format&n=7jcTEkTXPQwUz2BL&q=85&s=e63dd2009929a4b375b86e44ed6d7732 2500w" /> magnifying glass at the top to open the search tool
+  2. Type "Publishing" to locate the tool and select it from the results.
+  3. Select the **Autoscale** option and then select **Set up your published app**.
+</Accordion>
+
+<Frame caption="Autoscale configuration screen in the Publishing tool">
+  <img src="https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/autoscale-deployment-options.png?fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=6cf45ec28a15a8591949adc31ed71d27" alt="Autoscale publishing options" data-og-width="3280" width="3280" data-og-height="1780" height="1780" data-path="images/deployments/autoscale/autoscale-deployment-options.png" data-optimize="true" data-opv="3" srcset="https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/autoscale-deployment-options.png?w=280&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=e9cc26f2e73bb9e9b7507b73202e6570 280w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/autoscale-deployment-options.png?w=560&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=345159c33ac7c0a21aed51544263b053 560w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/autoscale-deployment-options.png?w=840&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=62067eefaba4d5cd252f3f74d71c535b 840w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/autoscale-deployment-options.png?w=1100&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=54bad7843d0a449cf52d69b2ec45e00d 1100w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/autoscale-deployment-options.png?w=1650&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=76bbe180a81c7fe7a5d75ef7dacb4615 1650w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/autoscale-deployment-options.png?w=2500&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=4176a1f3c4c49d3082d6a759813dfdc9 2500w" />
+</Frame>
+
+## Machine power
+
+Select **Edit** to view and set the machine power options. Use the sliders to select the CPU and RAM configuration
+for each published app server instance.
+
+View the **compute unit** cost for the configuration in the **Total per machine** row.
+A compute unit is a measurement of cloud computing resources based on the memory and CPU configuration of the machine.
+
+To learn more about calculating the cost based on Compute Units, see [Compute Units](/billing/about-usage-based-billing#2-compute-units).
+
+<Frame>
+  <img src="https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/machine-power.png?fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=ae68f9b2aa42924d95fa8104a09710a1" alt="screenshot of the machine power configuration" data-og-width="1257" width="1257" data-og-height="729" height="729" data-path="images/deployments/autoscale/machine-power.png" data-optimize="true" data-opv="3" srcset="https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/machine-power.png?w=280&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=ee5361b127c5bcdc3eee2fbb808bb71a 280w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/machine-power.png?w=560&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=03c2753e9f007d7b2f808012a6cbf1b8 560w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/machine-power.png?w=840&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=8fb21ac30fc994e6e3329673e4f1edc2 840w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/machine-power.png?w=1100&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=ba5e4e3732391d590a571c9430d0853b 1100w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/machine-power.png?w=1650&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=2fc7c6140e73038c50dc90e90931cf41 1650w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/machine-power.png?w=2500&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=e898fc5027d57c3cc2c404b406dcf90a 2500w" />
+</Frame>
+
+## Max number of machines
+
+Use the slider to adjust the maximum number of machines. This number is the upper limit of server
+instances the autoscaling feature can assign when it determines your app is busy.
+
+The bottom row shows the equivalent compute units, calculated by the following formula:
+
+`Number of machines * compute units per machine`
+
+<Frame>
+  <img src="https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/max-machines.png?fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=f8b5b3439abc9855130e6f63671946f5" alt="screenshot of the max number of machines configuration" data-og-width="1254" width="1254" data-og-height="329" height="329" data-path="images/deployments/autoscale/max-machines.png" data-optimize="true" data-opv="3" srcset="https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/max-machines.png?w=280&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=74a5f3b7f61489fb4258ff65d2661e53 280w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/max-machines.png?w=560&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=0261674225528ef150c3ceceb2864f90 560w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/max-machines.png?w=840&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=7c10c638acb41fa3badf5aed95bc0ba8 840w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/max-machines.png?w=1100&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=3d0ba33278bc2960f641ffe35608796f 1100w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/max-machines.png?w=1650&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=0b516031017e3e288df142284a457acb 1650w, https://mintcdn.com/replit/jSmYU1wBTvl8UMyc/images/deployments/autoscale/max-machines.png?w=2500&fit=max&auto=format&n=jSmYU1wBTvl8UMyc&q=85&s=35a1df108c284b24d3bcf1588642b8e6 2500w" />
+</Frame>
+
+## Next steps
+
+* [Published App Monitoring](/cloud-services/deployments/monitoring-a-deployment/): Learn how to view logs and monitor your published app.
+* [Publishing costs](/billing/deployment-pricing): View the costs associated with publishing.
+* [Pricing](https://replit.com/pricing/): View the pricing and allowances for each plan type.
+* [Usage Allowances](/billing/about-usage-based-billing/): Learn about scheduled deployment usage limits and billing units.
+
+
+---
+
+> To find navigation and other pages in this documentation, fetch the llms.txt file at: https://docs.replit.com/llms.txt
