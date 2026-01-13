@@ -22,9 +22,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatPHP } from "@/lib/currency";
-import { Download, FileSpreadsheet, BarChart3, TrendingUp, TrendingDown, DollarSign, Calculator, Save, Plus, Trash2 } from "lucide-react";
+import { Download, FileSpreadsheet, BarChart3, TrendingUp, TrendingDown, DollarSign, Calculator, Save, Plus, Trash2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { usePermissions } from "@/hooks/usePermissions";
 import type { TaxSettings, McitCredit, NolcoEntry, FinalWithholdingIncome } from "@shared/schema";
 import {
   Dialog,
@@ -69,7 +70,27 @@ interface FinancialSummary {
   totalEquity: number;
 }
 
+interface TaxCalculation {
+  grossIncome: number;
+  taxableIncome: number;
+  regularTax: number;
+  mcit: number;
+  taxDue: number;
+  isMcitApplied: boolean;
+  excessMcit: number;
+  availableNolco: number;
+  availableMcitCredits: number;
+  otherCredits: number;
+  totalCredits: number;
+  finalTaxDue: number;
+}
+
 export default function FinancialReports() {
+  const { checkPermission } = usePermissions();
+
+  // Check if user has permission to access financial reports
+  const hasFinancialReportsPermission = checkPermission("financialReports");
+
   const [year, setYear] = useState(new Date().getFullYear().toString());
   const [activeTab, setActiveTab] = useState("pnl");
   const [incomeTaxRate, setIncomeTaxRate] = useState("25");
@@ -92,11 +113,11 @@ export default function FinancialReports() {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString());
 
-  const { data: pnlData, isLoading: pnlLoading } = useQuery<FinancialRow[]>({
+  const { data: pnlData, isLoading: pnlLoading, isError: pnlError } = useQuery<FinancialRow[]>({
     queryKey: ["/api/reports/profit-loss", year],
   });
 
-  const { data: bsData, isLoading: bsLoading } = useQuery<FinancialRow[]>({
+  const { data: bsData, isLoading: bsLoading, isError: bsError } = useQuery<FinancialRow[]>({
     queryKey: ["/api/reports/balance-sheet", year],
   });
 
@@ -239,9 +260,10 @@ export default function FinancialReports() {
     other: "Other Passive Income",
   };
 
-  const taxCalculation = useMemo(() => {
+  const taxCalculation: TaxCalculation = useMemo(() => {
     const grossIncome = (summary?.totalRevenue || 0) - (summary?.totalCost || 0);
-    const taxableIncome = grossIncome - (summary?.totalExpenses || 0);
+    const availableNolco = nolcoEntries?.filter(n => parseInt(n.expiryYear.toString()) >= parseInt(year)).reduce((sum, n) => sum + parseFloat(n.remainingAmount || "0"), 0) || 0;
+    const taxableIncome = Math.max(0, grossIncome - (summary?.totalExpenses || 0) - availableNolco);
     const rate = parseFloat(incomeTaxRate) / 100;
     const mcitRateVal = parseFloat(mcitRate) / 100;
     const regularTax = Math.max(0, taxableIncome * rate);
@@ -249,7 +271,6 @@ export default function FinancialReports() {
     const taxDue = Math.max(regularTax, mcit);
     const isMcitApplied = mcit > regularTax;
     const excessMcit = isMcitApplied ? 0 : mcit;
-    const availableNolco = nolcoEntries?.filter(n => parseInt(n.expiryYear.toString()) >= parseInt(year)).reduce((sum, n) => sum + parseFloat(n.remainingAmount || "0"), 0) || 0;
     const availableMcitCredits = mcitCredits?.filter(c => parseInt(c.expiryYear.toString()) >= parseInt(year)).reduce((sum, c) => sum + parseFloat(c.remainingAmount || "0"), 0) || 0;
     const otherCredits = parseFloat(taxCredits) || 0;
     const totalCredits = availableMcitCredits + otherCredits;
@@ -290,6 +311,22 @@ export default function FinancialReports() {
   };
 
   const months = ["Jan", "Feb", "Mar", "Q1", "Apr", "May", "Jun", "Q2", "Jul", "Aug", "Sep", "Q3", "Oct", "Nov", "Dec", "Q4", "Annual"];
+
+  // If user doesn't have permission, show access denied message
+  if (!hasFinancialReportsPermission) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <AlertCircle className="h-16 w-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-semibold mb-2">Access Denied</h2>
+        <p className="text-muted-foreground mb-4">
+          You don't have permission to access financial reports.
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Contact your administrator to request access to financial reports.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -426,6 +463,14 @@ export default function FinancialReports() {
                     <Skeleton key={i} className="h-12 w-full" />
                   ))}
                 </div>
+              ) : pnlError ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <AlertCircle className="h-16 w-16 text-destructive" />
+                  <h3 className="mt-4 text-lg font-medium">Error loading P&L data</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Failed to load profit & loss data. Please try again.
+                  </p>
+                </div>
               ) : pnlData && pnlData.length > 0 ? (
                 <div className="overflow-x-auto">
                   <Table>
@@ -497,6 +542,14 @@ export default function FinancialReports() {
                   {[1, 2, 3, 4, 5].map((i) => (
                     <Skeleton key={i} className="h-12 w-full" />
                   ))}
+                </div>
+              ) : bsError ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <AlertCircle className="h-16 w-16 text-destructive" />
+                  <h3 className="mt-4 text-lg font-medium">Error loading balance sheet data</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Failed to load balance sheet data. Please try again.
+                  </p>
                 </div>
               ) : bsData && bsData.length > 0 ? (
                 <div className="overflow-x-auto">

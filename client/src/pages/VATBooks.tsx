@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,21 +61,39 @@ interface VATTotals {
 export default function VATBooks() {
   const [year, setYear] = useState(new Date().getFullYear().toString());
   const [activeTab, setActiveTab] = useState("sales");
-  
+
+  const queryClient = useQueryClient();
+
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString());
 
   const { data: salesEntries, isLoading: salesLoading } = useQuery<VATSalesEntry[]>({
     queryKey: ["/api/vat-sales-book", year],
+    queryFn: () => fetch(`/api/vat-sales-book?year=${year}`).then(res => res.json()),
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const { data: purchaseEntries, isLoading: purchaseLoading } = useQuery<VATPurchaseEntry[]>({
     queryKey: ["/api/vat-purchase-book", year],
+    queryFn: () => fetch(`/api/vat-purchase-book?year=${year}`).then(res => res.json()),
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const { data: totals } = useQuery<VATTotals[]>({
     queryKey: ["/api/vat-totals", year],
+    queryFn: () => fetch(`/api/vat-totals?year=${year}`).then(res => res.json()),
+    staleTime: 0,
+    refetchOnMount: true,
   });
+
+  // Refetch data when year changes
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["/api/vat-sales-book", year] });
+    queryClient.invalidateQueries({ queryKey: ["/api/vat-purchase-book", year] });
+    queryClient.invalidateQueries({ queryKey: ["/api/vat-totals", year] });
+  }, [year, queryClient]);
 
   const handleDownload = async () => {
     try {
@@ -314,8 +332,8 @@ export default function VATBooks() {
                     </TableHeader>
                     <TableBody>
                       {totals.map((t, idx) => (
-                        <>
-                          <TableRow key={t.month}>
+                        <React.Fragment key={`month-${idx}`}>
+                          <TableRow>
                             <TableCell className="font-medium">{t.month}</TableCell>
                             <TableCell className="text-right font-mono text-primary">
                               {formatPHP(t.outputVat)}
@@ -328,7 +346,7 @@ export default function VATBooks() {
                             </TableCell>
                           </TableRow>
                           {t.isQuarterEnd && t.quarterlyOutput !== undefined && (
-                            <TableRow key={`q-${idx}`} className="bg-muted/50 font-semibold">
+                            <TableRow className="bg-muted/50 font-semibold">
                               <TableCell>
                                 <Badge variant="secondary">Quarter {Math.ceil((idx + 1) / 3)}</Badge>
                               </TableCell>
@@ -343,7 +361,7 @@ export default function VATBooks() {
                               </TableCell>
                             </TableRow>
                           )}
-                        </>
+                        </React.Fragment>
                       ))}
                     </TableBody>
                   </Table>

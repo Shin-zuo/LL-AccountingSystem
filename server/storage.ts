@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and, desc, sql, gte, lte, sum } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte, sum, inArray } from "drizzle-orm";
 import {
   users,
   companies,
@@ -101,6 +101,8 @@ export interface IStorage {
   getDashboardStats(companyId: number): Promise<any>;
   getRecentVouchers(companyId: number, limit: number): Promise<any[]>;
   getJournalEntries(companyId: number, year: number): Promise<any[]>;
+  getProfitLossData(companyId: number, year: number): Promise<any[]>;
+  getBalanceSheetData(companyId: number, year: number): Promise<any[]>;
 
   // Employee operations
   getEmployees(companyId: number): Promise<Employee[]>;
@@ -366,18 +368,18 @@ export class DatabaseStorage implements IStorage {
   async getVatableCashReceipts(companyId: number, year: number): Promise<CashReceipt[]> {
     const startDate = `${year}-01-01`;
     const endDate = `${year}-12-31`;
-    return db
+    
+    const receipts = await db
       .select()
       .from(cashReceipts)
-      .where(
-        and(
-          eq(cashReceipts.companyId, companyId),
-          eq(cashReceipts.isVatable, true),
-          gte(cashReceipts.voucherDate, startDate),
-          lte(cashReceipts.voucherDate, endDate)
-        )
-      )
-      .orderBy(cashReceipts.voucherDate);
+      .where(and(
+        eq(cashReceipts.companyId, companyId),
+        eq(cashReceipts.isVatable, true)
+      ));
+      
+    return receipts
+      .filter(r => r.voucherDate >= startDate && r.voucherDate <= endDate)
+      .sort((a, b) => new Date(a.voucherDate).getTime() - new Date(b.voucherDate).getTime());
   }
 
   // Cash Disbursements operations
@@ -448,18 +450,18 @@ export class DatabaseStorage implements IStorage {
   async getVatableCashDisbursements(companyId: number, year: number): Promise<CashDisbursement[]> {
     const startDate = `${year}-01-01`;
     const endDate = `${year}-12-31`;
-    return db
+    
+    const disbursements = await db
       .select()
       .from(cashDisbursements)
-      .where(
-        and(
-          eq(cashDisbursements.companyId, companyId),
-          eq(cashDisbursements.hasInputVat, true),
-          gte(cashDisbursements.voucherDate, startDate),
-          lte(cashDisbursements.voucherDate, endDate)
-        )
-      )
-      .orderBy(cashDisbursements.voucherDate);
+      .where(and(
+        eq(cashDisbursements.companyId, companyId),
+        eq(cashDisbursements.hasInputVat, true)
+      ));
+      
+    return disbursements
+      .filter(d => d.voucherDate >= startDate && d.voucherDate <= endDate)
+      .sort((a, b) => new Date(a.voucherDate).getTime() - new Date(b.voucherDate).getTime());
   }
 
   // Subscription operations
@@ -570,27 +572,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getJournalEntries(companyId: number, year: number): Promise<any[]> {
-    // We construct strings for comparison in JS, which is more reliable
-    // than SQL date comparison for this specific setup
-    const startDate = `${year}-01-01`;
-    const endDate = `${year}-12-31`;
+    const startDate = new Date(year, 0, 1);
+    const endDate = new Date(year, 11, 31, 23, 59, 59);
 
-    // 1. Fetch ALL receipts for the company (removed SQL date filter)
     const receipts = await db
       .select()
       .from(cashReceipts)
       .where(eq(cashReceipts.companyId, companyId));
 
-    // 2. Fetch ALL disbursements for the company (removed SQL date filter)
     const disbursements = await db
       .select()
       .from(cashDisbursements)
       .where(eq(cashDisbursements.companyId, companyId));
 
-    // 3. Filter and map in JavaScript (Matches getDashboardStats logic)
     const combined = [
       ...receipts
-        .filter((r) => r.voucherDate >= startDate && r.voucherDate <= endDate)
+        .filter((r) => new Date(r.voucherDate) >= startDate && new Date(r.voucherDate) <= endDate)
         .map((r) => ({
           id: r.id,
           type: "receipt" as const,
@@ -602,7 +599,7 @@ export class DatabaseStorage implements IStorage {
           credit: "0",
         })),
       ...disbursements
-        .filter((d) => d.voucherDate >= startDate && d.voucherDate <= endDate)
+        .filter((d) => new Date(d.voucherDate) >= startDate && new Date(d.voucherDate) <= endDate)
         .map((d) => ({
           id: d.id,
           type: "disbursement" as const,
@@ -618,12 +615,368 @@ export class DatabaseStorage implements IStorage {
     return combined.sort((a, b) => new Date(a.voucherDate).getTime() - new Date(b.voucherDate).getTime());
   }
 
+  async getProfitLossData(companyId: number, year: number): Promise<any[]> {
+    const startDate = new Date(year, 0, 1);
+    const endDate = new Date(year, 11, 31, 23, 59, 59);
+
+    const accounts = await this.getChartOfAccounts(companyId);
+    const accountTypeMap = new Map(accounts.map(a => [a.id, a.accountType]));
+    const accountCodeMap = new Map(accounts.map(a => [a.id, a.code]));
+    const accountNameMap = new Map(accounts.map(a => [a.id, a.name]));
+
+    const receiptsAll = await db
+      .select()
+      .from(cashReceipts)
+      .where(eq(cashReceipts.companyId, companyId));
+
+    const receipts = receiptsAll.filter(r => new Date(r.voucherDate) >= startDate && new Date(r.voucherDate) <= endDate);
+    
+    let receiptLines: CashReceiptLine[] = [];
+    if (receipts.length > 0) {
+       receiptLines = await db
+        .select()
+        .from(cashReceiptLines)
+        .where(inArray(cashReceiptLines.cashReceiptId, receipts.map(r => r.id)));
+    }
+    
+    const disbursementsAll = await db
+      .select()
+      .from(cashDisbursements)
+      .where(eq(cashDisbursements.companyId, companyId));
+      
+    const disbursements = disbursementsAll.filter(d => d.voucherDate >= startDate && d.voucherDate <= endDate);
+
+    let disbursementLines: CashDisbursementLine[] = [];
+    if (disbursements.length > 0) {
+       disbursementLines = await db
+        .select()
+        .from(cashDisbursementLines)
+        .where(inArray(cashDisbursementLines.cashDisbursementId, disbursements.map(d => d.id)));
+    }
+
+    const monthlyData: { [key: string]: { [month: number]: number } } = {};
+
+    // Process Receipts with Fallback
+    for (const receipt of receipts) {
+      const month = new Date(receipt.voucherDate).getMonth() + 1;
+      const lines = receiptLines.filter(l => l.cashReceiptId === receipt.id);
+      let revenueFound = false;
+
+      // 1. Try to find Revenue from Lines
+      for (const line of lines) {
+        const accountType = accountTypeMap.get(line.accountId);
+        const accountCode = accountCodeMap.get(line.accountId);
+        const amount = parseFloat(line.amount || "0");
+
+        if (accountCode && accountType === "revenue") {
+          if (!monthlyData[accountCode]) monthlyData[accountCode] = {};
+          monthlyData[accountCode][month] = (monthlyData[accountCode][month] || 0) + amount;
+          revenueFound = true;
+        }
+      }
+
+      // 2. Fallback: If no revenue lines found, categorize under generic sales
+      if (!revenueFound) {
+        const amount = parseFloat(receipt.netAmount || receipt.cashAmount || "0");
+        if (amount > 0) {
+           let fallbackCode = "4000";
+           // Ensure the fallback code exists or map to first available revenue account
+           if (!accounts.some(a => a.code === fallbackCode)) {
+              const anyRevenue = accounts.find(a => a.accountType === "revenue");
+              if (anyRevenue) fallbackCode = anyRevenue.code;
+           }
+           
+           if (!monthlyData[fallbackCode]) monthlyData[fallbackCode] = {};
+           monthlyData[fallbackCode][month] = (monthlyData[fallbackCode][month] || 0) + amount;
+        }
+      }
+    }
+
+    // Process Disbursements with Fallback
+    for (const disbursement of disbursements) {
+      const month = new Date(disbursement.voucherDate).getMonth() + 1;
+      const lines = disbursementLines.filter(l => l.cashDisbursementId === disbursement.id);
+      let expenseFound = false;
+
+      for (const line of lines) {
+        const accountType = accountTypeMap.get(line.accountId);
+        const accountCode = accountCodeMap.get(line.accountId);
+        const amount = parseFloat(line.amount || "0");
+
+        if (accountCode && (accountType === "cost" || accountType === "expense")) {
+          if (!monthlyData[accountCode]) monthlyData[accountCode] = {};
+          monthlyData[accountCode][month] = (monthlyData[accountCode][month] || 0) + amount;
+          expenseFound = true;
+        }
+      }
+
+      // Fallback: If no expense lines found
+      if (!expenseFound) {
+        const amount = parseFloat(disbursement.netAmount || disbursement.cashAmount || "0");
+        if (amount > 0) {
+           let fallbackCode = "6900"; // Misc Expense
+           if (!accounts.some(a => a.code === fallbackCode)) {
+              const anyExpense = accounts.find(a => a.accountType === "expense");
+              if (anyExpense) fallbackCode = anyExpense.code;
+           }
+
+           if (!monthlyData[fallbackCode]) monthlyData[fallbackCode] = {};
+           monthlyData[fallbackCode][month] = (monthlyData[fallbackCode][month] || 0) + amount;
+        }
+      }
+    }
+
+    const result: any[] = [];
+    const months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+    for (const [accountCode, monthData] of Object.entries(monthlyData)) {
+      const accountName = accounts.find(a => a.code === accountCode)?.name || "Uncategorized";
+      const row: any = {
+        accountCode,
+        accountName,
+        jan: monthData[1] || 0,
+        feb: monthData[2] || 0,
+        mar: monthData[3] || 0,
+        q1: (monthData[1] || 0) + (monthData[2] || 0) + (monthData[3] || 0),
+        apr: monthData[4] || 0,
+        may: monthData[5] || 0,
+        jun: monthData[6] || 0,
+        q2: (monthData[4] || 0) + (monthData[5] || 0) + (monthData[6] || 0),
+        jul: monthData[7] || 0,
+        aug: monthData[8] || 0,
+        sep: monthData[9] || 0,
+        q3: (monthData[7] || 0) + (monthData[8] || 0) + (monthData[9] || 0),
+        oct: monthData[10] || 0,
+        nov: monthData[11] || 0,
+        dec: monthData[12] || 0,
+        q4: (monthData[10] || 0) + (monthData[11] || 0) + (monthData[12] || 0),
+        annual: months.reduce((sum, m) => sum + (monthData[m] || 0), 0),
+      };
+      result.push(row);
+    }
+
+    return result.sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+  }
+
+  async getBalanceSheetData(companyId: number, year: number): Promise<any[]> {
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+
+    const accounts = await this.getChartOfAccounts(companyId);
+    const accountTypeMap = new Map(accounts.map(a => [a.id, a.accountType]));
+    const accountCodeMap = new Map(accounts.map(a => [a.id, a.code]));
+
+    // Fetch Receipts
+    const receiptsAll = await db
+      .select()
+      .from(cashReceipts)
+      .where(eq(cashReceipts.companyId, companyId));
+    const receipts = receiptsAll.filter(r => new Date(r.voucherDate) >= new Date(startDate) && new Date(r.voucherDate) <= new Date(endDate));
+
+    let receiptLines: CashReceiptLine[] = [];
+    if (receipts.length > 0) {
+       receiptLines = await db
+        .select()
+        .from(cashReceiptLines)
+        .where(inArray(cashReceiptLines.cashReceiptId, receipts.map(r => r.id)));
+    }
+
+    // Fetch Disbursements
+    const disbursementsAll = await db
+      .select()
+      .from(cashDisbursements)
+      .where(eq(cashDisbursements.companyId, companyId));
+    const disbursements = disbursementsAll.filter(d => new Date(d.voucherDate) >= new Date(startDate) && new Date(d.voucherDate) <= new Date(endDate));
+
+    let disbursementLines: CashDisbursementLine[] = [];
+    if (disbursements.length > 0) {
+       disbursementLines = await db
+        .select()
+        .from(cashDisbursementLines)
+        .where(inArray(cashDisbursementLines.cashDisbursementId, disbursements.map(d => d.id)));
+    }
+
+    // P&L Calculation for Retained Earnings (Net Income)
+    const monthlyNetIncome: { [month: number]: number } = {};
+    for (let m = 1; m <= 12; m++) monthlyNetIncome[m] = 0;
+
+    // Calculate Net Income month by month
+    // Revenue
+    for (const receipt of receipts) {
+      const month = new Date(receipt.voucherDate).getMonth() + 1;
+      const lines = receiptLines.filter(l => l.cashReceiptId === receipt.id);
+      let revenueFound = false;
+      for(const line of lines) {
+         if (accountTypeMap.get(line.accountId) === "revenue") {
+           monthlyNetIncome[month] += parseFloat(line.amount || "0");
+           revenueFound = true;
+         }
+      }
+      if (!revenueFound) monthlyNetIncome[month] += parseFloat(receipt.netAmount || receipt.cashAmount || "0");
+    }
+    // Expense
+    for (const disbursement of disbursements) {
+      const month = new Date(disbursement.voucherDate).getMonth() + 1;
+      const lines = disbursementLines.filter(l => l.cashDisbursementId === disbursement.id);
+      let expenseFound = false;
+      for(const line of lines) {
+         const type = accountTypeMap.get(line.accountId);
+         if (type === "expense" || type === "cost") {
+           monthlyNetIncome[month] -= parseFloat(line.amount || "0");
+           expenseFound = true;
+         }
+      }
+      if (!expenseFound) monthlyNetIncome[month] -= parseFloat(disbursement.netAmount || disbursement.cashAmount || "0");
+    }
+
+    // Calculate cumulative balances by month
+    const cumulativeBalances: { [key: string]: { [month: number]: number } } = {};
+
+    // Helper to add value
+    const addToBalance = (code: string, month: number, amount: number) => {
+      if (!cumulativeBalances[code]) cumulativeBalances[code] = {};
+      cumulativeBalances[code][month] = (cumulativeBalances[code][month] || 0) + amount;
+    };
+
+    // 1. Add Net Income to Retained Earnings (3200)
+    const retainedEarningsCode = "3200";
+    if (accounts.some(a => a.code === retainedEarningsCode)) {
+       for (let m = 1; m <= 12; m++) {
+          addToBalance(retainedEarningsCode, m, monthlyNetIncome[m]);
+       }
+    }
+
+    // 2. Process Transactions for Balance Sheet items
+    const allTransactions: Array<{
+      date: string;
+      type: 'receipt' | 'disbursement';
+      receipt?: typeof receipts[0];
+      disbursement?: typeof disbursements[0];
+      receiptLines?: CashReceiptLine[];
+      disbursementLines?: CashDisbursementLine[];
+    }> = [];
+
+    for (const receipt of receipts) {
+      allTransactions.push({
+        date: receipt.voucherDate,
+        type: 'receipt',
+        receipt,
+        receiptLines: receiptLines.filter(l => l.cashReceiptId === receipt.id)
+      });
+    }
+
+    for (const disbursement of disbursements) {
+      allTransactions.push({
+        date: disbursement.voucherDate,
+        type: 'disbursement',
+        disbursement,
+        disbursementLines: disbursementLines.filter(l => l.cashDisbursementId === disbursement.id)
+      });
+    }
+
+    // Sort transactions by date
+    allTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    for (const transaction of allTransactions) {
+      const month = new Date(transaction.date).getMonth() + 1;
+
+      if (transaction.type === 'receipt') {
+        const receipt = transaction.receipt!;
+        const totalAmount = parseFloat(receipt.cashAmount || "0");
+
+        // Debit Side: Increase Cash (Asset) - FORCE THIS FROM HEADER
+        const cashAccountCode = "1010"; // Default Cash in Bank
+        addToBalance(cashAccountCode, month, totalAmount);
+
+        // Credit Side: Liabilities / Equity from lines
+        for (const line of transaction.receiptLines || []) {
+          const accountType = accountTypeMap.get(line.accountId);
+          const accountCode = accountCodeMap.get(line.accountId);
+          const amount = parseFloat(line.amount || "0");
+
+          if (accountCode && (accountType === "equity" || accountType === "liability")) {
+             addToBalance(accountCode, month, amount);
+          }
+        }
+      } else {
+        const disbursement = transaction.disbursement!;
+        const totalAmount = parseFloat(disbursement.cashAmount || "0");
+
+        // Credit Side: Decrease Cash (Asset) - FORCE THIS FROM HEADER
+        const cashAccountCode = "1010";
+        addToBalance(cashAccountCode, month, -totalAmount);
+
+        // Debit Side: Assets/Liabilities/Equity from lines
+        for (const line of transaction.disbursementLines || []) {
+          const accountType = accountTypeMap.get(line.accountId);
+          const accountCode = accountCodeMap.get(line.accountId);
+          const amount = parseFloat(line.amount || "0");
+
+          if (accountCode) {
+             if (accountType === "asset") {
+               addToBalance(accountCode, month, amount);
+             } else if (accountType === "liability" || accountType === "equity") {
+               addToBalance(accountCode, month, -amount);
+             }
+          }
+        }
+      }
+    }
+
+    // Calculate cumulative balances for each month (each month includes all previous months)
+    const finalBalances: { [key: string]: { [month: number]: number } } = {};
+
+    for (const [accountCode, monthData] of Object.entries(cumulativeBalances)) {
+      finalBalances[accountCode] = {};
+      let runningTotal = 0;
+
+      for (let month = 1; month <= 12; month++) {
+        runningTotal += monthData[month] || 0;
+        finalBalances[accountCode][month] = runningTotal;
+      }
+    }
+
+    const result: any[] = [];
+    const months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+    for (const [accountCode, monthData] of Object.entries(finalBalances)) {
+      const accountName = accounts.find(a => a.code === accountCode)?.name || "Unknown Account";
+      // Skip if all zeros
+      const total = months.reduce((sum, m) => sum + Math.abs(monthData[m] || 0), 0);
+      if (total === 0) continue;
+
+      const row: any = {
+        accountCode,
+        accountName,
+        jan: monthData[1] || 0,
+        feb: monthData[2] || 0,
+        mar: monthData[3] || 0,
+        q1: monthData[3] || 0,
+        apr: monthData[4] || 0,
+        may: monthData[5] || 0,
+        jun: monthData[6] || 0,
+        q2: monthData[6] || 0,
+        jul: monthData[7] || 0,
+        aug: monthData[8] || 0,
+        sep: monthData[9] || 0,
+        q3: monthData[9] || 0,
+        oct: monthData[10] || 0,
+        nov: monthData[11] || 0,
+        dec: monthData[12] || 0,
+        q4: monthData[12] || 0,
+        annual: monthData[12] || 0,
+      };
+      result.push(row);
+    }
+
+    return result.sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+  }
+
   // Onboarding - Create company with default chart of accounts
   async createCompanyWithDefaults(userId: string, companyName: string): Promise<Company> {
-    // Create the company with trial subscription
     const today = new Date();
     const trialEnd = new Date(today);
-    trialEnd.setDate(trialEnd.getDate() + 30); // 30-day trial
+    trialEnd.setDate(trialEnd.getDate() + 30);
 
     const [company] = await db.insert(companies).values({
       name: companyName,
@@ -632,7 +985,6 @@ export class DatabaseStorage implements IStorage {
       subscriptionEndDate: trialEnd.toISOString().split('T')[0],
     }).returning();
 
-    // Update user with company and make them general manager
     await db.update(users)
       .set({ 
         companyId: company.id, 
@@ -641,9 +993,7 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(users.id, userId));
 
-    // Insert default Philippine Chart of Accounts
     const defaultAccounts: Omit<InsertChartOfAccount, "companyId">[] = [
-      // Assets
       { code: "1000", name: "Cash on Hand", accountType: "asset", category: "balance_sheet" },
       { code: "1010", name: "Cash in Bank", accountType: "asset", category: "balance_sheet" },
       { code: "1100", name: "Accounts Receivable", accountType: "asset", category: "balance_sheet" },
@@ -652,32 +1002,22 @@ export class DatabaseStorage implements IStorage {
       { code: "1400", name: "Input VAT", accountType: "asset", category: "balance_sheet" },
       { code: "1500", name: "Property and Equipment", accountType: "asset", category: "balance_sheet" },
       { code: "1510", name: "Accumulated Depreciation", accountType: "asset", category: "balance_sheet" },
-      
-      // Liabilities
       { code: "2000", name: "Accounts Payable", accountType: "liability", category: "balance_sheet" },
       { code: "2100", name: "Output VAT", accountType: "liability", category: "balance_sheet" },
       { code: "2200", name: "Withholding Tax Payable", accountType: "liability", category: "balance_sheet" },
       { code: "2300", name: "SSS/PhilHealth/Pag-IBIG Payable", accountType: "liability", category: "balance_sheet" },
       { code: "2400", name: "Loans Payable", accountType: "liability", category: "balance_sheet" },
-      
-      // Equity
       { code: "3000", name: "Owner's Capital", accountType: "equity", category: "balance_sheet" },
       { code: "3100", name: "Owner's Drawings", accountType: "equity", category: "balance_sheet" },
       { code: "3200", name: "Retained Earnings", accountType: "equity", category: "balance_sheet" },
-      
-      // Revenue
       { code: "4000", name: "Sales Revenue", accountType: "revenue", category: "profit_loss" },
       { code: "4100", name: "Service Revenue", accountType: "revenue", category: "profit_loss" },
       { code: "4200", name: "Other Income", accountType: "revenue", category: "profit_loss" },
-      
-      // Cost (Cost of Sales - for BIR tax reporting)
       { code: "5000", name: "Cost of Goods Sold", accountType: "cost", category: "profit_loss" },
       { code: "5100", name: "Purchases", accountType: "cost", category: "profit_loss" },
       { code: "5150", name: "Freight-In", accountType: "cost", category: "profit_loss" },
       { code: "5200", name: "Direct Materials", accountType: "cost", category: "profit_loss" },
       { code: "5250", name: "Direct Labor", accountType: "cost", category: "profit_loss" },
-      
-      // Expenses (Operating Expenses)
       { code: "6000", name: "Salaries and Wages", accountType: "expense", category: "profit_loss" },
       { code: "6100", name: "Rent Expense", accountType: "expense", category: "profit_loss" },
       { code: "6200", name: "Utilities Expense", accountType: "expense", category: "profit_loss" },
@@ -838,26 +1178,26 @@ export class DatabaseStorage implements IStorage {
     
     return {
       compensationWithholdingTax: payrollSummary.totalWithholdingTax,
-      expandedWithholdingTax: 0, // From disbursements to suppliers - would need additional field
-      finalWithholdingTax: 0, // Interest, dividends - would need additional tracking
+      expandedWithholdingTax: 0, 
+      finalWithholdingTax: 0,
       totalWithholdingTax: payrollSummary.totalWithholdingTax,
     };
   }
 
   async getVatSummary(companyId: number, startDate: string, endDate: string): Promise<any> {
-    const receipts = await db.select().from(cashReceipts)
-      .where(and(
-        eq(cashReceipts.companyId, companyId),
-        gte(cashReceipts.voucherDate, startDate),
-        lte(cashReceipts.voucherDate, endDate)
-      ));
+    const receiptsAll = await db
+      .select()
+      .from(cashReceipts)
+      .where(eq(cashReceipts.companyId, companyId));
+      
+    const receipts = receiptsAll.filter(r => r.voucherDate >= startDate && r.voucherDate <= endDate);
 
-    const disbursements = await db.select().from(cashDisbursements)
-      .where(and(
-        eq(cashDisbursements.companyId, companyId),
-        gte(cashDisbursements.voucherDate, startDate),
-        lte(cashDisbursements.voucherDate, endDate)
-      ));
+    const disbursementsAll = await db
+      .select()
+      .from(cashDisbursements)
+      .where(eq(cashDisbursements.companyId, companyId));
+      
+    const disbursements = disbursementsAll.filter(d => d.voucherDate >= startDate && d.voucherDate <= endDate);
 
     let vatableSales = 0;
     let zeroRatedSales = 0;
@@ -893,24 +1233,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getIncomeSummary(companyId: number, startDate: string, endDate: string): Promise<any> {
-    const receipts = await db.select().from(cashReceipts)
-      .where(and(
-        eq(cashReceipts.companyId, companyId),
-        gte(cashReceipts.voucherDate, startDate),
-        lte(cashReceipts.voucherDate, endDate)
-      ));
+    const receiptsAll = await db
+      .select()
+      .from(cashReceipts)
+      .where(eq(cashReceipts.companyId, companyId));
+    
+    const receipts = receiptsAll.filter(r => r.voucherDate >= startDate && r.voucherDate <= endDate);
 
-    const disbursements = await db.select().from(cashDisbursements)
-      .where(and(
-        eq(cashDisbursements.companyId, companyId),
-        gte(cashDisbursements.voucherDate, startDate),
-        lte(cashDisbursements.voucherDate, endDate)
-      ));
+    const disbursementsAll = await db
+      .select()
+      .from(cashDisbursements)
+      .where(eq(cashDisbursements.companyId, companyId));
+      
+    const disbursements = disbursementsAll.filter(d => d.voucherDate >= startDate && d.voucherDate <= endDate);
 
     const grossIncome = receipts.reduce((sum, r) => sum + parseFloat(r.netAmount || r.cashAmount || "0"), 0);
     const deductions = disbursements.reduce((sum, d) => sum + parseFloat(d.netAmount || d.cashAmount || "0"), 0);
     const taxableIncome = grossIncome - deductions;
-    const incomeTaxRate = 0.25; // 25% corporate tax rate
+    const incomeTaxRate = 0.25;
     const incomeTaxDue = Math.max(0, taxableIncome * incomeTaxRate);
 
     return {
@@ -923,12 +1263,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSupplierPaymentsSummary(companyId: number, startDate: string, endDate: string): Promise<any> {
-    const disbursements = await db.select().from(cashDisbursements)
-      .where(and(
-        eq(cashDisbursements.companyId, companyId),
-        gte(cashDisbursements.voucherDate, startDate),
-        lte(cashDisbursements.voucherDate, endDate)
-      ));
+    const disbursementsAll = await db
+      .select()
+      .from(cashDisbursements)
+      .where(eq(cashDisbursements.companyId, companyId));
+      
+    const disbursements = disbursementsAll.filter(d => d.voucherDate >= startDate && d.voucherDate <= endDate);
 
     const supplierPayments: { [key: string]: { totalPayments: number; count: number } } = {};
     
@@ -956,12 +1296,13 @@ export class DatabaseStorage implements IStorage {
     const endDate = `${year}-12-31`;
 
     const empList = await this.getEmployees(companyId);
-    const periods = await db.select().from(payrollPeriods)
-      .where(and(
-        eq(payrollPeriods.companyId, companyId),
-        gte(payrollPeriods.startDate, startDate),
-        lte(payrollPeriods.endDate, endDate)
-      ));
+    
+    const periodsAll = await db
+      .select()
+      .from(payrollPeriods)
+      .where(eq(payrollPeriods.companyId, companyId));
+      
+    const periods = periodsAll.filter(p => p.startDate >= startDate && p.endDate <= endDate);
 
     const alphalist: any[] = [];
 
@@ -1007,13 +1348,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSalesList(companyId: number, startDate: string, endDate: string): Promise<any[]> {
-    const receipts = await db.select().from(cashReceipts)
-      .where(and(
-        eq(cashReceipts.companyId, companyId),
-        gte(cashReceipts.voucherDate, startDate),
-        lte(cashReceipts.voucherDate, endDate)
-      ))
-      .orderBy(cashReceipts.voucherDate);
+    const receiptsAll = await db
+      .select()
+      .from(cashReceipts)
+      .where(eq(cashReceipts.companyId, companyId));
+      
+    const receipts = receiptsAll
+      .filter(r => r.voucherDate >= startDate && r.voucherDate <= endDate)
+      .sort((a, b) => new Date(a.voucherDate).getTime() - new Date(b.voucherDate).getTime());
 
     return receipts.map(r => ({
       date: r.voucherDate,
@@ -1029,13 +1371,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPurchasesList(companyId: number, startDate: string, endDate: string): Promise<any[]> {
-    const disbursements = await db.select().from(cashDisbursements)
-      .where(and(
-        eq(cashDisbursements.companyId, companyId),
-        gte(cashDisbursements.voucherDate, startDate),
-        lte(cashDisbursements.voucherDate, endDate)
-      ))
-      .orderBy(cashDisbursements.voucherDate);
+    const disbursementsAll = await db
+      .select()
+      .from(cashDisbursements)
+      .where(eq(cashDisbursements.companyId, companyId));
+      
+    const disbursements = disbursementsAll
+      .filter(d => d.voucherDate >= startDate && d.voucherDate <= endDate)
+      .sort((a, b) => new Date(a.voucherDate).getTime() - new Date(b.voucherDate).getTime());
 
     return disbursements.map(d => ({
       date: d.voucherDate,
@@ -1051,14 +1394,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getWithholdingTaxCredits(companyId: number, startDate: string, endDate: string): Promise<any[]> {
-    const receipts = await db.select().from(cashReceipts)
+    const receiptsAll = await db
+      .select()
+      .from(cashReceipts)
       .where(and(
         eq(cashReceipts.companyId, companyId),
-        gte(cashReceipts.voucherDate, startDate),
-        lte(cashReceipts.voucherDate, endDate),
         sql`CAST(${cashReceipts.withholdingTaxAmount} AS DECIMAL) > 0`
-      ))
-      .orderBy(cashReceipts.voucherDate);
+      ));
+      
+    const receipts = receiptsAll
+      .filter(r => r.voucherDate >= startDate && r.voucherDate <= endDate)
+      .sort((a, b) => new Date(a.voucherDate).getTime() - new Date(b.voucherDate).getTime());
 
     return receipts.map(r => ({
       date: r.voucherDate,

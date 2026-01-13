@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,20 +46,22 @@ export default function Settings() {
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companyFormSchema),
     defaultValues: {
-      name: company?.name || "",
-      address: company?.address || "",
-      tin: company?.tin || "",
+      name: "",
+      address: "",
+      tin: "",
     },
   });
 
   // Update form when company data loads
-  if (company && !form.formState.isDirty) {
-    form.reset({
-      name: company.name,
-      address: company.address || "",
-      tin: company.tin || "",
-    });
-  }
+  useEffect(() => {
+    if (company && !form.formState.isDirty) {
+      form.reset({
+        name: company.name,
+        address: company.address || "",
+        tin: company.tin || "",
+      });
+    }
+  }, [company, form]);
 
   const updateMutation = useMutation({
     mutationFn: async (data: CompanyFormData) => {

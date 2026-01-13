@@ -725,13 +725,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // Financial Reports routes
-  app.get("/api/reports/summary", requireAuth, requirePermission("financialReports"), async (req, res) => {
+  app.get("/api/reports/summary/:year", requireAuth, requirePermission("financialReports"), async (req, res) => {
     try {
       const companyId = await getCompanyId(req);
       if (!companyId) {
         return res.status(404).json({ message: "Company not found" });
       }
-      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const year = parseInt(req.params.year) || new Date().getFullYear();
       
       // Get all accounts to determine account types
       const accounts = await storage.getChartOfAccounts(companyId);
@@ -797,18 +797,32 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  app.get("/api/reports/profit-loss", requireAuth, requirePermission("financialReports"), async (req, res) => {
+  app.get("/api/reports/profit-loss/:year", requireAuth, requirePermission("financialReports"), async (req, res) => {
     try {
-      res.json([]);
+      const companyId = await getCompanyId(req);
+      if (!companyId) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+      const year = parseInt(req.params.year) || new Date().getFullYear();
+      const data = await storage.getProfitLossData(companyId, year);
+      res.json(data);
     } catch (error) {
+      console.error("Failed to fetch P&L data:", error);
       res.status(500).json({ message: "Failed to fetch P&L data" });
     }
   });
 
-  app.get("/api/reports/balance-sheet", requireAuth, requirePermission("financialReports"), async (req, res) => {
+  app.get("/api/reports/balance-sheet/:year", requireAuth, requirePermission("financialReports"), async (req, res) => {
     try {
-      res.json([]);
+      const companyId = await getCompanyId(req);
+      if (!companyId) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+      const year = parseInt(req.params.year) || new Date().getFullYear();
+      const data = await storage.getBalanceSheetData(companyId, year);
+      res.json(data);
     } catch (error) {
+      console.error("Failed to fetch balance sheet data:", error);
       res.status(500).json({ message: "Failed to fetch balance sheet data" });
     }
   });
