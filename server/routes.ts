@@ -492,6 +492,71 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(Object.values(USER_ROLES));
   });
 
+  app.post("/api/users", requireAuth, requirePermission("userManagement"), async (req, res) => {
+    try {
+      const companyId = await getCompanyId(req);
+      if (!companyId) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+
+      const { email, firstName, lastName, role } = req.body;
+
+      // Validate required fields
+      if (!email || !firstName || !lastName || !role) {
+        return res.status(400).json({ message: "Email, first name, last name, and role are required" });
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
+
+      // Validate role
+      const validRoles = Object.values(USER_ROLES);
+      if (!validRoles.includes(role)) {
+        return res.status(400).json({ message: "Invalid role. Valid roles are: " + validRoles.join(", ") });
+      }
+
+      // Check if user already exists
+      const existingUser = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (existingUser.length > 0) {
+        return res.status(400).json({ message: "User with this email already exists" });
+      }
+
+      // Set default password to "user123"
+      const defaultPassword = "user123";
+      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+      // Create the user
+      const newUser = await storage.createUser({
+        email,
+        firstName,
+        lastName,
+        password: hashedPassword,
+        role,
+        companyId,
+      });
+
+      // TODO: Send invitation email with login instructions
+      // For now, we'll just return success and log the default password
+      console.log(`New user created: ${email}, default password: ${defaultPassword}`);
+
+      res.status(201).json({
+        id: newUser.id,
+        email: newUser.email,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        role: newUser.role,
+        createdAt: newUser.createdAt,
+        message: "User created successfully with default password 'user123'. Please inform the user of their login credentials."
+      });
+    } catch (error) {
+      console.error("Create user error:", error);
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
   app.patch("/api/users/:id/role", requireAuth, requirePermission("userManagement"), async (req, res) => {
     try {
       const userId = req.params.id;
@@ -504,6 +569,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json(updated);
     } catch (error) {
       res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
+  app.patch("/api/users/:id/reset-password", requireAuth, requirePermission("userManagement"), async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const defaultPassword = "user123";
+      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+      const updated = await storage.updateUserPassword(userId, hashedPassword);
+      res.json({ message: "Password reset to default successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to reset user password" });
     }
   });
 

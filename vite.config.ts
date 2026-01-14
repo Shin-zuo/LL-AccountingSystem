@@ -32,11 +32,13 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    host: '0.0.0.0', // Allow access from other PCs on the network
     compress: false,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: process.env.SERVER_HOST || 'http://localhost:5000',
         changeOrigin: true,
+        secure: false,
       },
     },
     fs: {

@@ -99,7 +99,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {company && company.subscriptionStatus !== "active" && (
+      {/* {company && company.subscriptionStatus !== "active" && (
         <Card className="border-destructive/50 bg-destructive/5">
           <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
@@ -120,7 +120,7 @@ export default function Dashboard() {
             </Link>
           </CardContent>
         </Card>
-      )}
+      )} */}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>

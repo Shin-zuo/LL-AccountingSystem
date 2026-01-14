@@ -213,8 +213,8 @@ export default function Settings() {
             <div>
               <label className="text-sm font-medium">Name</label>
               <p className="text-sm text-muted-foreground">
-                {user?.firstName && user?.lastName 
-                  ? `${user.firstName} ${user.lastName}` 
+                {user?.firstName && user?.lastName
+                  ? `${user.firstName} ${user.lastName}`
                   : "Not set"}
               </p>
             </div>

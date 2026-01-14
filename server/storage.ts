@@ -55,6 +55,7 @@ export interface IStorage {
   getUsersByCompanyId(companyId: number): Promise<User[]>;
   getApprovers(companyId: number): Promise<User[]>;
   updateUserRole(userId: string, role: string): Promise<User>;
+  updateUserPassword(userId: string, hashedPassword: string): Promise<User>;
 
   // Company operations
   getCompany(id: number): Promise<Company | undefined>;
@@ -186,6 +187,14 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async createUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .returning();
+    return user;
+  }
+
   async getUsersByCompanyId(companyId: number): Promise<User[]> {
     return db.select().from(users).where(eq(users.companyId, companyId));
   }
@@ -206,6 +215,15 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .update(users)
       .set({ role, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async updateUserPassword(userId: string, hashedPassword: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ password: hashedPassword, updatedAt: new Date() })
       .where(eq(users.id, userId))
       .returning();
     return user;

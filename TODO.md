@@ -1,9 +1,10 @@
-# Authentication Fixes TODO
+# Network Access Enhancement Plan
 
-## Completed Tasks
-- [x] Remove conflicting `client/src/hooks/use-auth.ts` file to resolve TypeScript errors
+## Tasks
+- [ ] Update vite.config.ts to enable network access (host: 0.0.0.0, update proxy target)
+- [ ] Update server/index.ts session cookie settings for network compatibility
+- [ ] Add keep-alive settings to prevent connection timeouts
+- [ ] Test network access from another PC
 
-## Pending Tasks
-- [ ] Execute `fix_sessions.js` to clear existing sessions from database
-- [ ] Test login with different user accounts to verify authentication works
-- [ ] Verify logout properly destroys sessions and clears all caches
+## Status
+In Progress

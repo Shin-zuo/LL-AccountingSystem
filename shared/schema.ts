@@ -491,6 +491,14 @@ export const insertCashDisbursementLineSchema = createInsertSchema(cashDisbursem
 
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true, createdAt: true } as const);
 
+export const insertUserSchema = createInsertSchema(users, {
+  email: z.string().email().min(1),
+  password: z.string().min(6),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  role: z.enum([USER_ROLES.ACCOUNTANT, USER_ROLES.TAX_COMPLIANCE_OFFICER, USER_ROLES.PAYROLL_OFFICER, USER_ROLES.COMPTROLLER, USER_ROLES.GENERAL_MANAGER]),
+}).omit({ id: true, createdAt: true, updatedAt: true } as const);
+
 export const insertEmployeeSchema = createInsertSchema(employees, {
   employeeCode: z.string().min(1),
   firstName: z.string().min(1),
@@ -539,6 +547,7 @@ export type NolcoEntry = typeof nolcoEntries.$inferSelect;
 export type InsertNolcoEntry = z.infer<typeof insertNolcoEntrySchema>;
 export type FinalWithholdingIncome = typeof finalWithholdingIncomes.$inferSelect;
 export type InsertFinalWithholdingIncome = z.infer<typeof insertFinalWithholdingIncomeSchema>;
+export type InsertUser = z.infer<typeof insertUserSchema>;
 
 // BIR Report types (not stored in DB, used for data generation)
 export interface BIRReportConfig {

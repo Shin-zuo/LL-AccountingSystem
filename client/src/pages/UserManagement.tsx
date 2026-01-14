@@ -1,4 +1,4 @@
-import { useState } from "react";
+ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +25,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -29,10 +50,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatDate } from "@/lib/currency";
 import {
   Users,
@@ -44,17 +72,47 @@ import {
   FileText,
   Wallet,
   Crown,
+  UserPlus,
+  RotateCcw,
 } from "lucide-react";
 import type { User as UserType } from "@shared/schema";
 import { USER_ROLES } from "@shared/schema";
+
+const createUserFormSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  role: z.string().min(1, "Please select a role"),
+});
+
+type CreateUserFormData = z.infer<typeof createUserFormSchema>;
 
 export default function UserManagement() {
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [newRole, setNewRole] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
+  const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
+  const [userToReset, setUserToReset] = useState<UserType | null>(null);
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
+  const { checkPermission } = usePermissions();
+  const canManageUsers = checkPermission("userManagement");
+
+  const createUserForm = useForm<CreateUserFormData>({
+    resolver: zodResolver(createUserFormSchema),
+    defaultValues: {
+      email: "",
+      firstName: "",
+      lastName: "",
+      role: "",
+    },
+  });
+
+  const onCreateUserSubmit = (data: CreateUserFormData) => {
+    createUserMutation.mutate(data);
+  };
 
   const { data: users, isLoading } = useQuery<UserType[]>({
     queryKey: ["/api/users"],
@@ -93,6 +151,71 @@ export default function UserManagement() {
     },
   });
 
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      await apiRequest("PATCH", `/api/users/${userId}/reset-password`);
+    },
+    onSuccess: () => {
+      setIsResetPasswordDialogOpen(false);
+      setUserToReset(null);
+      toast({
+        title: "Password reset",
+        description: "User password has been reset to default successfully.",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to reset user password.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createUserMutation = useMutation({
+    mutationFn: async (data: CreateUserFormData) => {
+      await apiRequest("POST", "/api/users", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setIsCreateUserDialogOpen(false);
+      createUserForm.reset();
+      toast({
+        title: "User created",
+        description: "New user has been created successfully.",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to create user.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const filteredUsers = users?.filter(
     (u) =>
       u.email?.toLowerCase().includes(search.toLowerCase()) ||
@@ -106,9 +229,20 @@ export default function UserManagement() {
     setIsDialogOpen(true);
   };
 
+  const openResetPasswordDialog = (user: UserType) => {
+    setUserToReset(user);
+    setIsResetPasswordDialogOpen(true);
+  };
+
   const handleUpdateRole = () => {
     if (selectedUser && newRole) {
       updateRoleMutation.mutate({ userId: selectedUser.id, role: newRole });
+    }
+  };
+
+  const handleResetPassword = () => {
+    if (userToReset) {
+      resetPasswordMutation.mutate(userToReset.id);
     }
   };
 
@@ -162,15 +296,27 @@ export default function UserManagement() {
                 {users?.length || 0} users in your company
               </CardDescription>
             </div>
-            <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search users..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-                data-testid="input-search-users"
-              />
+            <div className="flex items-center gap-4">
+              {canManageUsers && (
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => setIsCreateUserDialogOpen(true)}
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Add New User
+                </Button>
+              )}
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search users..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                  data-testid="input-search-users"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -221,14 +367,34 @@ export default function UserManagement() {
                       <TableCell>{user.createdAt ? formatDate(user.createdAt) : "-"}</TableCell>
                       <TableCell>
                         {user.id !== currentUser?.id && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openRoleDialog(user)}
-                            data-testid={`button-edit-role-${user.id}`}
-                          >
-                            Edit Role
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openRoleDialog(user)}
+                              data-testid={`button-edit-role-${user.id}`}
+                            >
+                              Edit Role
+                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openResetPasswordDialog(user)}
+                                    disabled={resetPasswordMutation.isPending}
+                                    data-testid={`button-reset-password-${user.id}`}
+                                  >
+                                    <RotateCcw className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Reset Password</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>
@@ -338,7 +504,7 @@ export default function UserManagement() {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleUpdateRole}
               disabled={updateRoleMutation.isPending}
               data-testid="button-confirm-role-change"
@@ -348,6 +514,136 @@ export default function UserManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isCreateUserDialogOpen} onOpenChange={setIsCreateUserDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New User</DialogTitle>
+            <DialogDescription>
+              Create a new user account for your company. They will receive an email invitation to set up their password.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...createUserForm}>
+            <form onSubmit={createUserForm.handleSubmit(onCreateUserSubmit)} className="space-y-4">
+              <FormField
+                control={createUserForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email Address</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="user@example.com"
+                        {...field}
+                        data-testid="input-new-user-email"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={createUserForm.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="John"
+                          {...field}
+                          data-testid="input-new-user-firstname"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={createUserForm.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Doe"
+                          {...field}
+                          data-testid="input-new-user-lastname"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={createUserForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-new-user-role">
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={USER_ROLES.ACCOUNTANT}>Accountant</SelectItem>
+                        <SelectItem value={USER_ROLES.TAX_COMPLIANCE_OFFICER}>Tax Compliance Officer</SelectItem>
+                        <SelectItem value={USER_ROLES.PAYROLL_OFFICER}>Payroll Officer</SelectItem>
+                        <SelectItem value={USER_ROLES.COMPTROLLER}>Comptroller</SelectItem>
+                        <SelectItem value={USER_ROLES.GENERAL_MANAGER}>General Manager</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCreateUserDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createUserMutation.isPending}
+                  data-testid="button-create-user"
+                >
+                  {createUserMutation.isPending ? "Creating..." : "Create User"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={isResetPasswordDialogOpen} onOpenChange={setIsResetPasswordDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Password</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to reset the password for {userToReset?.firstName || userToReset?.email}? 
+              This will reset their password to the default and they will need to set a new one.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetPassword}
+              disabled={resetPasswordMutation.isPending}
+              data-testid="button-confirm-reset-password"
+            >
+              {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
