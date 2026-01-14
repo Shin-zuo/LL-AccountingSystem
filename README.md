@@ -174,7 +174,7 @@ Place all images, screenshots, and diagrams in the `images/` directory at the ro
 <img width="1913" height="884" alt="Screenshot 2026-01-14 110122" src="https://github.com/user-attachments/assets/138939bf-dcf9-4b1e-93d3-c2128713916c" />
 
 
-
+<br><br>
 
 
 
