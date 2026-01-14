@@ -205,4 +205,5 @@ To reference images in this README or other documentation, use relative paths li
 
 ---
 
-**Note**: This system is designed specifically for Philippine accounting standards and BIR compliance requirements. Ensure you understand local tax laws before using in production.
+**Note**: This system is designed specifically for Philippine accounting standards and BIR compliance requirements. Ensure you understand local tax laws before using in production. This is also created from the idea to sell it by subscription.
+
