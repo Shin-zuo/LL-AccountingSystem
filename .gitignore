@@ -1,9 +1,45 @@
+# dependencies
 node_modules
+
+#build output
 dist
 .DS_Store
 server/public
-vite.config.ts.*
-*.tar.gz
+*.tsbuildinfo
+
+#environment files
 .env
 .env.local
 .env.*.local
+
+# OS and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+
+#logs and tmp files
+*.log
+npm-debug.log*
+*.tmp
+*.temp
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db    
+*.sql
+
+#testing
+coverage/
+.nyc_output/
+
+#archives and assets
+*.tar.gz
+attatched_assets/
+
+#build tools
+.cache/
+.parcel-cache/
+vite.config.ts
