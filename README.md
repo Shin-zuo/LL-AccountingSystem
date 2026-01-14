@@ -170,8 +170,8 @@ For support and questions:
 ## Images and Screenshots
 
 Place all images, screenshots, and diagrams in the `images/` directory at the root of the repository. This includes:
+<img width="1893" height="871" alt="Screenshot 2026-01-14 172558" src="https://github.com/user-attachments/assets/75049330-a3ab-4e61-8172-9b4c6d433abd" />
 
-<img width="1913" height="884" alt="Screenshot 2026-01-14 110122" src="https://github.com/user-attachments/assets/138939bf-dcf9-4b1e-93d3-c2128713916c" />
 
 
 <br><br>
@@ -180,7 +180,7 @@ Place all images, screenshots, and diagrams in the `images/` directory at the ro
 
 
 
-<img width="1893" height="871" alt="Screenshot 2026-01-14 172558" src="https://github.com/user-attachments/assets/75049330-a3ab-4e61-8172-9b4c6d433abd" />
+<img width="1913" height="884" alt="Screenshot 2026-01-14 110122" src="https://github.com/user-attachments/assets/138939bf-dcf9-4b1e-93d3-c2128713916c" />
 
 
 Example structure:
